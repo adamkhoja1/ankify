@@ -6,10 +6,45 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "openai>=2.7.1",
+    "anthropic>=0.40.0",
+    "textual>=0.90.0",
+    "httpx>=0.28.0",
+    "beautifulsoup4>=4.12.0",
+    "pypdf>=5.1.0",
+    "ebooklib>=0.18",
+    "pyyaml>=6.0",
+    "click>=8.1.0",
+    "aiosqlite>=0.20.0",
+    "pydantic>=2.10.0",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
+    "pytest-asyncio>=0.24.0",
     "ruff>=0.14.4",
+    "mypy>=1.14.0",
 ]
+
+[project.scripts]
+ankification = "ankification.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
