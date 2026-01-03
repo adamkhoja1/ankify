@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS tags (
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     sources TEXT NOT NULL,  -- JSON array of sources
+    provider TEXT NOT NULL DEFAULT 'openai',
+    card_types TEXT NOT NULL DEFAULT 'basic,cloze',  -- Comma-separated
+    count_guidance TEXT NOT NULL DEFAULT '10-15',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP
 );

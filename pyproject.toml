@@ -16,12 +16,29 @@ dependencies = [
     "click>=8.1.0",
     "aiosqlite>=0.20.0",
     "pydantic>=2.10.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.12",
+    "websockets>=13.0",
 ]
 
 [dependency-groups]
 dev = [
+    # Testing
     "pytest>=8.4.2",
     "pytest-asyncio>=0.24.0",
+    "pytest-cov>=4.1.0",
+    "pytest-timeout>=2.3.0",
+    "pytest-xdist>=3.5.0",
+    "coverage[toml]>=7.4.0",
+    # Property-based testing
+    "hypothesis>=6.100.0",
+    # Test factories
+    "factory-boy>=3.3.0",
+    "faker>=24.0.0",
+    # Snapshot testing
+    "syrupy>=4.6.0",
+    # Linting & type checking
     "ruff>=0.14.4",
     "mypy>=1.14.0",
 ]
@@ -48,3 +65,47 @@ python_version = "3.13"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+timeout = 30
+markers = [
+    "unit: Fast isolated unit tests",
+    "property: Property-based tests (hypothesis)",
+    "contract: Interface contract tests",
+    "integration: Multi-module integration tests",
+    "web: Web API tests",
+    "cli: CLI tests",
+    "tui: TUI tests",
+    "e2e: End-to-end tests",
+    "slow: Tests that take > 1 second",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src/ankification"]
+branch = true
+parallel = true
+omit = [
+    "*/__pycache__/*",
+    "*/tests/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+fail_under = 80
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov"

@@ -10,6 +10,7 @@ from .cards import CardGenerator, CardStatus
 from .config import Config, ConfigManager
 from .export import AnkiConnectExporter, CSVExporter
 from .storage.database import Database
+from .tui import run_tui
 
 
 @click.group()
@@ -121,15 +122,18 @@ async def _generate_async(
 
             # Review flow
             if not no_review:
-                click.echo(
-                    "\nInteractive review is not yet implemented. "
-                    "All cards marked as accepted."
-                )
-                # TODO: Launch TUI for review
-                # For now, just mark all as accepted
-                for card in cards:
-                    card.status = CardStatus.ACCEPTED
+                click.echo("\nLaunching interactive review...")
+
+                # Launch TUI for review
+                reviewed_cards, tui_export_choice = run_tui(cards, config)
+
+                # Save reviewed cards
+                for card in reviewed_cards:
                     await db.save_card(card)
+
+                # Override export format if user chose in TUI
+                if tui_export_choice:
+                    export_format = tui_export_choice
 
             # Export
             await _export_cards(cards, export_format, config)
@@ -365,6 +369,43 @@ async def _export_session_async(
             cards = [c for c in cards if c.status == status_enum]
 
         await _export_cards(cards, export_format, config)
+
+
+@main.command()
+@click.option("--host", default="127.0.0.1", help="Host to bind to")
+@click.option("--port", default=8000, type=int, help="Port to bind to")
+@click.option("--reload", is_flag=True, help="Enable auto-reload for development")
+@click.pass_context
+def serve(ctx: click.Context, host: str, port: int, reload: bool) -> None:
+    """Start the web interface server.
+
+    This starts a FastAPI server with the web interface. The server will be
+    accessible at http://{host}:{port}
+
+    By default, the server runs on http://127.0.0.1:8000
+    """
+    import uvicorn
+
+    from .web.app import app
+
+    click.echo(f"Starting Ankification web server at http://{host}:{port}")
+    click.echo("Press Ctrl+C to stop the server")
+    click.echo("")
+
+    if reload:
+        click.echo("Running in development mode with auto-reload enabled")
+        click.echo("")
+
+    try:
+        uvicorn.run(
+            "ankification.web.app:app",
+            host=host,
+            port=port,
+            reload=reload,
+            log_level="info",
+        )
+    except KeyboardInterrupt:
+        click.echo("\nServer stopped")
 
 
 if __name__ == "__main__":

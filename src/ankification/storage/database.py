@@ -188,11 +188,20 @@ class Database:
 
     # Session operations
 
-    async def create_session(self, sources: list[str]) -> str:
+    async def create_session(
+        self,
+        sources: list[str],
+        provider: str = "openai",
+        card_types: list[str] | None = None,
+        count_guidance: str = "10-15",
+    ) -> str:
         """Create a new session.
 
         Args:
             sources: List of source URLs/files
+            provider: LLM provider used
+            card_types: Types of cards generated
+            count_guidance: Card count guidance string
 
         Returns:
             Session ID
@@ -202,10 +211,14 @@ class Database:
 
         session_id = str(uuid.uuid4())
         sources_json = json.dumps(sources)
+        card_types_str = ",".join(card_types) if card_types else "basic,cloze"
 
         await self._connection.execute(
-            "INSERT INTO sessions (id, sources) VALUES (?, ?)",
-            (session_id, sources_json),
+            """
+            INSERT INTO sessions (id, sources, provider, card_types, count_guidance)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (session_id, sources_json, provider, card_types_str, count_guidance),
         )
         await self._connection.commit()
 
@@ -242,7 +255,7 @@ class Database:
         )
         await self._connection.commit()
 
-    async def get_sessions(self, limit: int = 10) -> list[dict[str, Any]]:
+    async def get_sessions(self, limit: int = 100) -> list[dict[str, Any]]:
         """Get recent sessions.
 
         Args:
@@ -256,7 +269,8 @@ class Database:
 
         cursor = await self._connection.execute(
             """
-            SELECT id, sources, created_at, completed_at
+            SELECT id, sources, provider, card_types, count_guidance,
+                   created_at, completed_at
             FROM sessions
             ORDER BY created_at DESC
             LIMIT ?
@@ -268,7 +282,10 @@ class Database:
         return [
             {
                 "id": row["id"],
-                "sources": json.loads(row["sources"]),
+                "sources": row["sources"],  # Already a string, will parse in API layer
+                "provider": row["provider"],
+                "card_types": row["card_types"],
+                "count_guidance": row["count_guidance"],
                 "created_at": row["created_at"],
                 "completed_at": row["completed_at"],
             }
@@ -375,3 +392,59 @@ class Database:
         rows = await cursor.fetchall()
 
         return [card_from_dict(json.loads(row["content"])) for row in rows]
+
+    async def get_all_cards(self) -> list[Card]:
+        """Get all cards.
+
+        Returns:
+            List of all cards
+        """
+        if not self._connection:
+            raise RuntimeError("Database not connected")
+
+        cursor = await self._connection.execute(
+            "SELECT content FROM cards ORDER BY created_at DESC"
+        )
+        rows = await cursor.fetchall()
+
+        return [card_from_dict(json.loads(row["content"])) for row in rows]
+
+    async def delete_card(self, card_id: str) -> None:
+        """Delete a card and its related data.
+
+        Args:
+            card_id: Card ID to delete
+        """
+        if not self._connection:
+            raise RuntimeError("Database not connected")
+
+        # Delete related records first (foreign key constraints)
+        await self._connection.execute("DELETE FROM tags WHERE card_id = ?", (card_id,))
+        await self._connection.execute(
+            "DELETE FROM session_cards WHERE card_id = ?", (card_id,)
+        )
+        await self._connection.execute(
+            "DELETE FROM edit_history WHERE card_id = ?", (card_id,)
+        )
+
+        # Delete the card itself
+        await self._connection.execute("DELETE FROM cards WHERE id = ?", (card_id,))
+        await self._connection.commit()
+
+    async def delete_session(self, session_id: str) -> None:
+        """Delete a session and unlink its cards.
+
+        Args:
+            session_id: Session ID to delete
+        """
+        if not self._connection:
+            raise RuntimeError("Database not connected")
+
+        # Delete session-card links
+        await self._connection.execute(
+            "DELETE FROM session_cards WHERE session_id = ?", (session_id,)
+        )
+
+        # Delete the session
+        await self._connection.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+        await self._connection.commit()
