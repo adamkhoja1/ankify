@@ -1,12 +1,13 @@
 """Card management API routes."""
 
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ...cards.editor import CardEditor
-from ...cards.models import Card, CardStatus, card_from_dict
+from ...cards.models import BasicCard, CardStatus, ClozeCard
 from ...storage.database import Database
 from ..dependencies import get_db
-from ..models.api import CardFilters, CardResponse, CardUpdate, StatusUpdate
+from ..models.api import CardResponse, CardUpdate, StatusUpdate
 
 router = APIRouter(prefix="/api/cards", tags=["cards"])
 
@@ -102,12 +103,12 @@ async def update_card(
     editor = CardEditor(db)
 
     # Update fields based on card type
-    if hasattr(card, "front") and update.front is not None:
+    if isinstance(card, BasicCard) and update.front is not None:
         card = await editor.edit_basic_card(
-            card, front=update.front, back=update.back or card.back
+            card.id, front=update.front, back=update.back or card.back
         )
-    elif hasattr(card, "text") and update.text is not None:
-        card = await editor.edit_cloze_card(card, text=update.text)
+    elif isinstance(card, ClozeCard) and update.text is not None:
+        card = await editor.edit_cloze_card(card.id, text=update.text)
 
     # Update tags if provided
     if update.tags is not None:
@@ -145,7 +146,7 @@ async def update_card_status(
 
 
 @router.delete("/{card_id}")
-async def delete_card(card_id: str, db: Database = Depends(get_db)) -> dict:
+async def delete_card(card_id: str, db: Database = Depends(get_db)) -> dict[str, str]:
     """Delete a card.
 
     Args:

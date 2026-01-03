@@ -45,20 +45,13 @@ async def refine_card(
         old_content = card.to_json()
 
         # Refine the card
-        if isinstance(card, BasicCard):
-            refined = await provider.refine_card(
-                card=card,
-                feedback=request.feedback,
-                original_content=f"Front: {card.front}\nBack: {card.back}",
-            )
+        refined = await provider.refine_card(card=card, feedback=request.feedback)
+
+        # Update card with refined content
+        if isinstance(card, BasicCard) and isinstance(refined, BasicCard):
             card.front = refined.front
             card.back = refined.back
-        elif isinstance(card, ClozeCard):
-            refined = await provider.refine_card(
-                card=card,
-                feedback=request.feedback,
-                original_content=f"Text: {card.text}",
-            )
+        elif isinstance(card, ClozeCard) and isinstance(refined, ClozeCard):
             card.text = refined.text
 
         # Save refined card

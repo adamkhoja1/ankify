@@ -41,6 +41,7 @@ dev = [
     # Linting & type checking
     "ruff>=0.14.4",
     "mypy>=1.14.0",
+    "types-pyyaml>=6.0.12.20250915",
 ]
 
 [project.scripts]
@@ -59,6 +60,10 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Prompt templates need readable long lines
+"src/ankification/llm/prompts.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.13"

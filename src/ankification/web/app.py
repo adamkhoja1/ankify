@@ -1,12 +1,10 @@
 """Main FastAPI application for web interface."""
 
-import os
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 
 from .routes import cards, config, generation, llm, sessions
 
@@ -38,7 +36,7 @@ def create_app() -> FastAPI:
     )
 
     @app.get("/api/health")
-    async def health_check() -> dict:
+    async def health_check() -> dict[str, str]:
         """Health check endpoint."""
         return {"status": "ok", "message": "Ankification API is running"}
 

@@ -2,11 +2,10 @@
 
 import asyncio
 import sys
-from pathlib import Path
 
 import click
 
-from .cards import CardGenerator, CardStatus
+from .cards import Card, CardGenerator, CardStatus
 from .config import Config, ConfigManager
 from .export import AnkiConnectExporter, CSVExporter
 from .storage.database import Database
@@ -46,7 +45,10 @@ def main(ctx: click.Context) -> None:
     type=click.Choice(["basic", "cloze"]),
     help="Types of cards to generate",
 )
-@click.option("--export-format", "-e", type=click.Choice(["csv", "ankiconnect"]), help="Export format")
+@click.option(
+    "--export-format", "-e", type=click.Choice(["csv", "ankiconnect"]),
+    help="Export format",
+)
 @click.option("--no-review", is_flag=True, help="Skip interactive review")
 @click.pass_context
 def generate(
@@ -148,7 +150,7 @@ async def _generate_async(
             sys.exit(1)
 
 
-async def _export_cards(cards: list, export_format: str, config: Config) -> None:
+async def _export_cards(cards: list[Card], export_format: str, config: Config) -> None:
     """Export cards to specified format."""
     # Filter accepted cards
     accepted_cards = [c for c in cards if c.status == CardStatus.ACCEPTED]
@@ -160,21 +162,21 @@ async def _export_cards(cards: list, export_format: str, config: Config) -> None
     click.echo(f"\nExporting {len(accepted_cards)} accepted card(s)...")
 
     if export_format == "csv":
-        exporter = CSVExporter(config.export.csv.output_dir)
-        output_path = exporter.export(accepted_cards)
+        csv_exporter = CSVExporter(config.export.csv.output_dir)
+        output_path = csv_exporter.export(accepted_cards)
         click.echo(f"✓ Exported to: {output_path}")
 
     elif export_format == "ankiconnect":
-        exporter = AnkiConnectExporter(
+        anki_exporter = AnkiConnectExporter(
             url=config.export.ankiconnect.url, deck=config.export.ankiconnect.deck
         )
 
         try:
             # Test connection
-            await exporter.test_connection()
+            await anki_exporter.test_connection()
 
             # Export
-            results = await exporter.export(accepted_cards)
+            results = await anki_exporter.export(accepted_cards)
 
             click.echo(f"✓ Exported {results['success']} card(s) to Anki")
             if results["failed"]:
@@ -324,9 +326,15 @@ async def _list_sessions_async(config: Config, limit: int) -> None:
 @main.command("export")
 @click.option("--session", "-s", help="Session ID to export")
 @click.option(
-    "--format", "-f", "export_format", type=click.Choice(["csv", "ankiconnect"]), help="Export format"
+    "--format", "-f", "export_format",
+    type=click.Choice(["csv", "ankiconnect"]),
+    help="Export format",
 )
-@click.option("--status", type=click.Choice(["accepted", "draft", "rejected"]), help="Filter by status")
+@click.option(
+    "--status",
+    type=click.Choice(["accepted", "draft", "rejected"]),
+    help="Filter by status",
+)
 @click.pass_context
 def export_command(
     ctx: click.Context,
@@ -347,6 +355,8 @@ async def _export_session_async(
     config: Config, session_id: str | None, export_format: str, status_filter: str | None
 ) -> None:
     """Async implementation of export command."""
+    from .cards.models import CardStatus
+
     async with Database(config.storage.database_path) as db:
         # Get cards
         if session_id:
@@ -363,9 +373,7 @@ async def _export_session_async(
 
         # Filter by status if specified
         if status_filter:
-            from .cards.models import CardStatus as CS
-
-            status_enum = CS(status_filter)
+            status_enum = CardStatus(status_filter)
             cards = [c for c in cards if c.status == status_enum]
 
         await _export_cards(cards, export_format, config)
@@ -386,7 +394,6 @@ def serve(ctx: click.Context, host: str, port: int, reload: bool) -> None:
     """
     import uvicorn
 
-    from .web.app import app
 
     click.echo(f"Starting Ankification web server at http://{host}:{port}")
     click.echo("Press Ctrl+C to stop the server")

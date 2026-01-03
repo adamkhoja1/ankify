@@ -15,7 +15,7 @@ from .components.summary import SummaryScreen
 from .components.tag_editor import TagEditorModal
 
 
-class AnkificationTUI(App):
+class AnkificationTUI(App[None]):
     """Textual app for reviewing and editing flashcards."""
 
     CSS = """

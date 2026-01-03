@@ -1,6 +1,6 @@
 """Shared dependencies for web routes."""
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from ..config import Config
 from ..config.manager import ConfigManager
@@ -17,7 +17,7 @@ def get_config() -> Config:
     return manager.load()
 
 
-async def get_db() -> AsyncGenerator[Database, None]:
+async def get_db() -> AsyncGenerator[Database]:
     """Dependency to get database connection.
 
     Yields:

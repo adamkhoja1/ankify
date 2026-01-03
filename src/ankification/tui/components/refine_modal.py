@@ -1,7 +1,7 @@
 """LLM refinement modal component."""
 
 from textual.app import ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Static
 
@@ -105,10 +105,10 @@ class RefineModal(ModalScreen[tuple[str, Card] | None]):
         else:
             self.dismiss(None)
 
-    def on_input_submitted(self, event: Input.Submitted) -> None:
+    async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle input submission."""
         submit_btn = self.query_one("#submit-btn", Button)
-        self.on_button_pressed(Button.Pressed(submit_btn))
+        await self.on_button_pressed(Button.Pressed(submit_btn))
 
     def on_key(self, event) -> None:  # type: ignore
         """Handle key press."""

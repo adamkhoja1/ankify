@@ -1,12 +1,12 @@
 """Help modal component."""
 
 from textual.app import ComposeResult
-from textual.containers import Container, Grid
+from textual.containers import Container
 from textual.screen import ModalScreen
 from textual.widgets import Button, Static
 
 
-class HelpModal(ModalScreen):
+class HelpModal(ModalScreen[None]):
     """Modal screen showing keyboard shortcuts."""
 
     CSS = """

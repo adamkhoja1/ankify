@@ -3,7 +3,7 @@
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Static, TextArea
+from textual.widgets import Button, Static, TextArea
 
 from ...cards.models import BasicCard, Card, ClozeCard
 
@@ -85,16 +85,16 @@ class EditorModal(ModalScreen[Card | None]):
 
             with Container(id="editor-content"):
                 if isinstance(self.card, BasicCard):
-                    yield self._compose_basic_editor()
+                    yield from self._compose_basic_editor()
                 else:
                     assert isinstance(self.card, ClozeCard)
-                    yield self._compose_cloze_editor()
+                    yield from self._compose_cloze_editor()
 
             with Horizontal(id="editor-buttons"):
                 yield Button("Save [Ctrl+S]", id="save-btn", variant="success")
                 yield Button("Cancel [Esc]", id="cancel-btn", variant="default")
 
-    def _compose_basic_editor(self) -> Container:
+    def _compose_basic_editor(self) -> ComposeResult:
         """Compose editor for basic card."""
         assert isinstance(self.card, BasicCard)
 
@@ -121,7 +121,7 @@ class EditorModal(ModalScreen[Card | None]):
                         yield Static("Editing:", classes="edited-label")
                         yield TextArea(self.card.back, id="back-input")
 
-    def _compose_cloze_editor(self) -> Container:
+    def _compose_cloze_editor(self) -> ComposeResult:
         """Compose editor for cloze card."""
         assert isinstance(self.card, ClozeCard)
 
@@ -155,11 +155,11 @@ class EditorModal(ModalScreen[Card | None]):
         else:
             self.dismiss(None)
 
-    def on_key(self, event) -> None:  # type: ignore
+    async def on_key(self, event) -> None:  # type: ignore
         """Handle key press."""
         if event.key == "escape":
             self.dismiss(None)
         elif event.key == "ctrl+s":
             # Trigger save
             save_btn = self.query_one("#save-btn", Button)
-            self.on_button_pressed(Button.Pressed(save_btn))
+            await self.on_button_pressed(Button.Pressed(save_btn))

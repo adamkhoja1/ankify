@@ -1,5 +1,6 @@
 """Session management API routes."""
 
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from ...cards.models import CardStatus
@@ -119,7 +120,7 @@ async def get_session_cards(
 
 
 @router.delete("/{session_id}")
-async def delete_session(session_id: str, db: Database = Depends(get_db)) -> dict:
+async def delete_session(session_id: str, db: Database = Depends(get_db)) -> dict[str, str]:
     """Delete a session and all its cards.
 
     Args:

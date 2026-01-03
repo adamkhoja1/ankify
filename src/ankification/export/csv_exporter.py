@@ -110,7 +110,6 @@ class CSVExporter:
         Returns:
             Dictionary mapping status to output file path
         """
-        from ..cards.models import CardStatus
         from datetime import datetime
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

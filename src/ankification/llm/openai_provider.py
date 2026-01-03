@@ -1,6 +1,7 @@
 """OpenAI LLM provider."""
 
 import json
+from typing import Any
 
 from openai import AsyncOpenAI
 
@@ -110,7 +111,7 @@ class OpenAIProvider(BaseLLMProvider):
         except Exception as e:
             raise RuntimeError(f"OpenAI card refinement failed: {e}") from e
 
-    def _parse_cards(self, data: dict, source: str) -> list[Card]:
+    def _parse_cards(self, data: dict[str, Any], source: str) -> list[Card]:
         """Parse cards from API response.
 
         Args:
@@ -131,7 +132,7 @@ class OpenAIProvider(BaseLLMProvider):
 
         return cards
 
-    def _parse_single_card(self, card_data: dict, source: str) -> Card:
+    def _parse_single_card(self, card_data: dict[str, Any], source: str) -> Card:
         """Parse a single card from data.
 
         Args:

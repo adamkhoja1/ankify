@@ -12,6 +12,14 @@ from ankification.config import Config
 from ankification.config.manager import ConfigManager
 from ankification.storage.database import Database
 
+# Import modular fixtures - makes them available to all tests
+pytest_plugins = [
+    "tests.fixtures.database",
+    "tests.fixtures.cards",
+    "tests.fixtures.config",
+    "tests.fixtures.mocks",
+]
+
 
 # === Pytest Hooks ===
 

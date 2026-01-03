@@ -117,19 +117,20 @@ class TagEditorModal(ModalScreen[list[str] | None]):
 
                 yield Static("Available tags (click to add):", classes="tag-label")
                 with Container(id="available-tags"):
-                    yield self._render_available_tags()
+                    yield from self._render_available_tags()
 
             with Horizontal(id="tag-buttons"):
                 yield Button("Done [Enter]", id="done-btn", variant="success")
                 yield Button("Clear All", id="clear-btn", variant="warning")
                 yield Button("Cancel [Esc]", id="cancel-btn", variant="default")
 
-    def _render_available_tags(self) -> Container:
+    def _render_available_tags(self) -> ComposeResult:
         """Render list of available tags."""
         with Vertical():
             for tag in sorted(self.available_tags):
                 status = " (current)" if tag in self.current_tags else ""
-                classes = "tag-item tag-current" if tag in self.current_tags else "tag-item tag-available"
+                is_current = tag in self.current_tags
+                classes = "tag-item tag-current" if is_current else "tag-item tag-available"
                 yield Static(f"• {tag}{status}", classes=classes)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -155,7 +156,8 @@ class TagEditorModal(ModalScreen[list[str] | None]):
         with available_container:
             for tag in sorted(self.available_tags):
                 status = " (current)" if tag in self.current_tags else ""
-                classes = "tag-item tag-current" if tag in self.current_tags else "tag-item tag-available"
+                is_current = tag in self.current_tags
+                classes = "tag-item tag-current" if is_current else "tag-item tag-available"
                 available_container.mount(Static(f"• {tag}{status}", classes=classes))
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:

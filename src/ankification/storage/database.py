@@ -174,18 +174,6 @@ class Database:
 
         return [card_from_dict(json.loads(row["content"])) for row in rows]
 
-    async def delete_card(self, card_id: str) -> None:
-        """Delete a card.
-
-        Args:
-            card_id: Card ID
-        """
-        if not self._connection:
-            raise RuntimeError("Database not connected")
-
-        await self._connection.execute("DELETE FROM cards WHERE id = ?", (card_id,))
-        await self._connection.commit()
-
     # Session operations
 
     async def create_session(
@@ -282,7 +270,7 @@ class Database:
         return [
             {
                 "id": row["id"],
-                "sources": row["sources"],  # Already a string, will parse in API layer
+                "sources": json.loads(row["sources"]),
                 "provider": row["provider"],
                 "card_types": row["card_types"],
                 "count_guidance": row["count_guidance"],

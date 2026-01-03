@@ -1,5 +1,7 @@
 """Configuration API routes."""
 
+from typing import Any
+
 from fastapi import APIRouter, Depends
 
 from ...config import Config
@@ -13,8 +15,8 @@ def get_config_manager() -> ConfigManager:
     return ConfigManager()
 
 
-@router.get("", response_model=dict)
-async def get_config(manager: ConfigManager = Depends(get_config_manager)) -> dict:
+@router.get("", response_model=dict[str, Any])
+async def get_config(manager: ConfigManager = Depends(get_config_manager)) -> dict[str, Any]:
     """Get current configuration.
 
     Args:
@@ -27,10 +29,10 @@ async def get_config(manager: ConfigManager = Depends(get_config_manager)) -> di
     return config.model_dump()
 
 
-@router.put("", response_model=dict)
+@router.put("", response_model=dict[str, Any])
 async def update_config(
-    updates: dict, manager: ConfigManager = Depends(get_config_manager)
-) -> dict:
+    updates: dict[str, Any], manager: ConfigManager = Depends(get_config_manager)
+) -> dict[str, Any]:
     """Update configuration.
 
     Args:

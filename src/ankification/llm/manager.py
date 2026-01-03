@@ -41,6 +41,8 @@ class LLMManager:
             return self._providers[provider_name]
 
         # Create new provider
+        provider: BaseLLMProvider
+
         if provider_name == "openai":
             api_key = self.config.llm.openai.api_key
             if not api_key:
@@ -58,7 +60,8 @@ class LLMManager:
             api_key = self.config.llm.anthropic.api_key
             if not api_key:
                 raise ValueError(
-                    "Anthropic API key not configured. Set it in config or ANTHROPIC_API_KEY env var."
+                    "Anthropic API key not configured. "
+                    "Set it in config or ANTHROPIC_API_KEY env var."
                 )
 
             provider = AnthropicProvider(

@@ -1,8 +1,23 @@
 """AnkiConnect API integration."""
 
+from typing import Any
+
 import httpx
 
 from ..cards.models import BasicCard, Card, CardType, ClozeCard
+
+
+class ExportResult:
+    """Result of an export operation."""
+
+    def __init__(self) -> None:
+        self.success: int = 0
+        self.failed: int = 0
+        self.errors: list[str] = []
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary."""
+        return {"success": self.success, "failed": self.failed, "errors": self.errors}
 
 
 class AnkiConnectExporter:
@@ -40,14 +55,14 @@ class AnkiConnectExporter:
         except Exception as e:
             raise RuntimeError(f"Failed to connect to AnkiConnect: {e}") from e
 
-    async def export(self, cards: list[Card]) -> dict[str, int]:
+    async def export(self, cards: list[Card]) -> dict[str, Any]:
         """Export cards to Anki via AnkiConnect.
 
         Args:
             cards: Cards to export
 
         Returns:
-            Dictionary with success/failure counts
+            Dictionary with success/failure counts and errors list
 
         Raises:
             ValueError: If no cards provided
@@ -56,17 +71,17 @@ class AnkiConnectExporter:
         if not cards:
             raise ValueError("No cards to export")
 
-        results = {"success": 0, "failed": 0, "errors": []}
+        result = ExportResult()
 
         for card in cards:
             try:
                 await self._add_card(card)
-                results["success"] += 1
+                result.success += 1
             except Exception as e:
-                results["failed"] += 1
-                results["errors"].append(f"Card {card.id}: {str(e)}")
+                result.failed += 1
+                result.errors.append(f"Card {card.id}: {str(e)}")
 
-        return results
+        return result.to_dict()
 
     async def _add_card(self, card: Card) -> None:
         """Add a single card to Anki.
@@ -116,7 +131,7 @@ class AnkiConnectExporter:
 
         await self._invoke("addNote", note=note)
 
-    async def _invoke(self, action: str, **params: dict) -> dict:
+    async def _invoke(self, action: str, **params: Any) -> Any:
         """Invoke AnkiConnect API.
 
         Args:
@@ -124,12 +139,12 @@ class AnkiConnectExporter:
             **params: Action parameters
 
         Returns:
-            API response data
+            API response data (type varies by action)
 
         Raises:
             RuntimeError: If API call fails
         """
-        request_data = {"action": action, "version": 6, "params": params}
+        request_data: dict[str, Any] = {"action": action, "version": 6, "params": params}
 
         try:
             async with httpx.AsyncClient() as client:
@@ -137,7 +152,7 @@ class AnkiConnectExporter:
                     self.url, json=request_data, timeout=10.0
                 )
                 response.raise_for_status()
-                data = response.json()
+                data: dict[str, Any] = response.json()
 
                 if data.get("error"):
                     raise RuntimeError(f"AnkiConnect error: {data['error']}")
@@ -170,4 +185,7 @@ class AnkiConnectExporter:
             RuntimeError: If retrieval fails
         """
         result = await self._invoke("deckNames")
-        return result if result else []
+        if result is None:
+            return []
+        # AnkiConnect returns a list of strings for deckNames
+        return list(result)

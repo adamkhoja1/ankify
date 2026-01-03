@@ -1,5 +1,6 @@
 """Sidebar component for card list."""
 
+from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Static
 
@@ -19,7 +20,7 @@ class CardSidebar(VerticalScroll):
         self.cards = cards
         self.current_index = 0
 
-    def compose(self):
+    def compose(self) -> ComposeResult:
         """Compose sidebar widgets."""
         yield Static(f"Cards ({len(self.cards)})", classes="sidebar-header")
 

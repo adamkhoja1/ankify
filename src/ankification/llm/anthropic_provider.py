@@ -1,6 +1,7 @@
 """Anthropic Claude LLM provider."""
 
 import json
+from typing import Any, cast
 
 from anthropic import AsyncAnthropic
 
@@ -126,7 +127,7 @@ class AnthropicProvider(BaseLLMProvider):
         except Exception as e:
             raise RuntimeError(f"Claude card refinement failed: {e}") from e
 
-    def _extract_json(self, text: str) -> dict:
+    def _extract_json(self, text: str) -> dict[str, Any]:
         """Extract JSON from text, handling markdown code blocks.
 
         Args:
@@ -137,7 +138,7 @@ class AnthropicProvider(BaseLLMProvider):
         """
         # Try direct parse first
         try:
-            return json.loads(text)
+            return cast(dict[str, Any], json.loads(text))
         except json.JSONDecodeError:
             pass
 
@@ -147,7 +148,7 @@ class AnthropicProvider(BaseLLMProvider):
             end = text.find("```", start)
             if end != -1:
                 json_str = text[start:end].strip()
-                return json.loads(json_str)
+                return cast(dict[str, Any], json.loads(json_str))
 
         # Try extracting from generic code block
         if "```" in text:
@@ -155,18 +156,18 @@ class AnthropicProvider(BaseLLMProvider):
             end = text.find("```", start)
             if end != -1:
                 json_str = text[start:end].strip()
-                return json.loads(json_str)
+                return cast(dict[str, Any], json.loads(json_str))
 
         # Last resort: try to find JSON object
         start = text.find("{")
         end = text.rfind("}") + 1
         if start != -1 and end > start:
             json_str = text[start:end]
-            return json.loads(json_str)
+            return cast(dict[str, Any], json.loads(json_str))
 
         raise json.JSONDecodeError("Could not extract JSON from response", text, 0)
 
-    def _parse_cards(self, data: dict, source: str) -> list[Card]:
+    def _parse_cards(self, data: dict[str, Any], source: str) -> list[Card]:
         """Parse cards from API response.
 
         Args:
@@ -187,7 +188,7 @@ class AnthropicProvider(BaseLLMProvider):
 
         return cards
 
-    def _parse_single_card(self, card_data: dict, source: str) -> Card:
+    def _parse_single_card(self, card_data: dict[str, Any], source: str) -> Card:
         """Parse a single card from data.
 
         Args:

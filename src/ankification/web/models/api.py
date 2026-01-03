@@ -1,6 +1,7 @@
 """Pydantic models for API requests and responses."""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -12,7 +13,7 @@ class CardResponse(BaseModel):
 
     id: str
     type: str
-    content: dict
+    content: dict[str, Any]
     source: str
     status: str
     tags: list[str]

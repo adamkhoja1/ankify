@@ -1,5 +1,6 @@
 """Card viewer component."""
 
+from textual.app import ComposeResult
 from textual.containers import Container, Vertical
 from textual.widgets import Static
 
@@ -18,7 +19,7 @@ class CardViewer(Container):
         super().__init__(**kwargs)
         self.card = card
 
-    def compose(self):
+    def compose(self) -> ComposeResult:
         """Compose card viewer widgets."""
         if not self.card:
             yield Static("No card selected")
@@ -36,19 +37,16 @@ class CardViewer(Container):
 
         # Card content based on type
         if isinstance(self.card, BasicCard):
-            yield self._compose_basic_card(self.card)
+            yield from self._compose_basic_card(self.card)
         else:
             assert isinstance(self.card, ClozeCard)
-            yield self._compose_cloze_card(self.card)
+            yield from self._compose_cloze_card(self.card)
 
-    def _compose_basic_card(self, card: BasicCard):
+    def _compose_basic_card(self, card: BasicCard) -> ComposeResult:
         """Compose basic card display.
 
         Args:
             card: Basic card to display
-
-        Returns:
-            Container with front and back
         """
         with Vertical():
             yield Static("Front", classes="field-label")
@@ -57,14 +55,11 @@ class CardViewer(Container):
             yield Static("Back", classes="field-label")
             yield Static(card.back, classes="field-content card-back")
 
-    def _compose_cloze_card(self, card: ClozeCard):
+    def _compose_cloze_card(self, card: ClozeCard) -> ComposeResult:
         """Compose cloze card display.
 
         Args:
             card: Cloze card to display
-
-        Returns:
-            Container with cloze text
         """
         with Vertical():
             yield Static("Text", classes="field-label")

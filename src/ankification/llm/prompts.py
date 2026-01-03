@@ -1,5 +1,12 @@
 """Prompt templates for card generation."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..cards.models import Card
+
 SYSTEM_PROMPT = """You are an expert at creating high-quality spaced repetition flashcards for learning and retention. Your cards should be:
 
 1. **Atomic**: Each card tests one concept or fact
@@ -107,7 +114,7 @@ For cloze cards:
 """
 
 
-def build_refinement_prompt(card: "Card", feedback: str) -> str:  # type: ignore
+def build_refinement_prompt(card: Card, feedback: str) -> str:
     """Build prompt for card refinement.
 
     Args:
@@ -117,7 +124,7 @@ def build_refinement_prompt(card: "Card", feedback: str) -> str:  # type: ignore
     Returns:
         Complete prompt string
     """
-    from ..cards.models import BasicCard, CardType
+    from ..cards.models import BasicCard, CardType, ClozeCard
 
     if card.type == CardType.BASIC:
         assert isinstance(card, BasicCard)
@@ -127,6 +134,7 @@ Front: {card.front}
 Back: {card.back}
 """
     else:
+        assert isinstance(card, ClozeCard)
         card_info = f"""Current card:
 Type: cloze
 Text: {card.text}

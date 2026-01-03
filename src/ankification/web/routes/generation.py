@@ -7,12 +7,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from ...cards.generator import CardGenerator
-from ...cards.models import CardType
 from ...config import Config
 from ...fetchers.manager import FetcherManager
 from ...llm.manager import LLMManager
 from ...storage.database import Database
-from ..dependencies import get_config, get_db
+from ..dependencies import get_config
 from ..models.api import GenerateRequest
 from ..websocket.manager import manager as ws_manager
 
@@ -26,7 +25,7 @@ generation_jobs: dict[str, dict[str, Any]] = {}
 async def start_generation(
     request: GenerateRequest,
     config: Config = Depends(get_config),
-) -> dict:
+) -> dict[str, str]:
     """Start an asynchronous card generation job.
 
     Args:
@@ -61,7 +60,7 @@ async def start_generation(
 
 
 @router.get("/{job_id}")
-async def get_generation_status(job_id: str) -> dict:
+async def get_generation_status(job_id: str) -> dict[str, Any]:
     """Get the status of a generation job.
 
     Args:
@@ -96,7 +95,7 @@ async def generation_websocket(websocket: WebSocket, job_id: str) -> None:
             # Wait for messages (ping/pong to keep alive)
             try:
                 await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Send current status
                 if job_id in generation_jobs:
                     await ws_manager.send_message(generation_jobs[job_id], job_id)
@@ -137,7 +136,7 @@ async def _generate_cards_async(
             # Create generator
             fetcher_manager = FetcherManager()
             llm_manager = LLMManager(config)
-            generator = CardGenerator(fetcher_manager, llm_manager, db)
+            generator = CardGenerator(config, db, fetcher_manager, llm_manager)
 
             # Create session
             session_id = await db.create_session(
@@ -154,7 +153,8 @@ async def _generate_cards_async(
             for i, source in enumerate(request.sources):
                 # Update progress
                 generation_jobs[job_id]["progress"] = i
-                generation_jobs[job_id]["message"] = f"Processing source {i + 1}/{len(request.sources)}: {source}"
+                total = len(request.sources)
+                generation_jobs[job_id]["message"] = f"Processing source {i + 1}/{total}: {source}"
                 await ws_manager.send_message(generation_jobs[job_id], job_id)
 
                 try:
@@ -162,9 +162,8 @@ async def _generate_cards_async(
                     cards = await generator.generate_from_source(
                         source=source,
                         provider=request.provider,
-                        card_types=request.card_types,
+                        card_types=[ct.value for ct in request.card_types],
                         count_guidance=request.count_guidance,
-                        user_directives=request.user_directives,
                     )
 
                     # Add tags

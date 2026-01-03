@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-import ebooklib
-from ebooklib import epub
+import ebooklib  # type: ignore[import-untyped]
 from bs4 import BeautifulSoup
+from ebooklib import epub
 
 from .base import BaseFetcher
 

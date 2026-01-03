@@ -161,11 +161,14 @@ def mock_database() -> MagicMock:
     db.save_card = AsyncMock()
     db.get_card = AsyncMock(return_value=None)
     db.get_all_cards = AsyncMock(return_value=[])
-    db.update_card = AsyncMock()
+    db.get_cards_by_status = AsyncMock(return_value=[])
+    db.get_cards_by_session = AsyncMock(return_value=[])
     db.delete_card = AsyncMock()
     db.create_session = AsyncMock(return_value="mock-session-id")
     db.add_card_to_session = AsyncMock()
     db.complete_session = AsyncMock()
+    db.get_sessions = AsyncMock(return_value=[])
+    db.search_cards_by_tag = AsyncMock(return_value=[])
     return db
 
 
