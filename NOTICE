@@ -1,0 +1,20 @@
+ankification
+Copyright 2026 Adam Khoja
+
+This product includes prompt templates adapted from Memory Machines
+(https://github.com/laddermedia/memory-machines), Copyright Ladder Media,
+licensed under the Apache License, Version 2.0.
+
+The adapted files are:
+  src/ankification/prompts/probe_lacks_context.txt
+  src/ankification/prompts/probe_multiple_responses.txt
+  src/ankification/prompts/probe_shallow.txt
+  src/ankification/prompts/probe_wordy.txt
+  src/ankification/prompts/probe_narrow.txt
+  src/ankification/prompts/tier_grounded.txt
+  src/ankification/prompts/tier_ungrounded.txt
+
+They are the LLM-judge instruction prompts from Memory Machines' tiering and
+probes modules, used here to score generated flashcard quality. The original
+output-format sections are stripped at load time; structured outputs enforce the
+response shape instead. See docs/RESEARCH.md for the citation.

@@ -205,3 +205,12 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ankification
+eval_runs/
+vendor/
+frontend/node_modules/
+.cards/
+# frontend/dist is committed (force-added) so the skill's `serve` works without a build step
+!frontend/dist/
+!frontend/dist/**
