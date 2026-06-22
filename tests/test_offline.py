@@ -1,7 +1,6 @@
 """Offline unit tests (no API): cost tracking, prompt loading, parsing, session logic."""
 
 import pytest
-from openai.types import CompletionUsage
 
 from ankification.eval.datasets import parse_qa
 from ankification.ingest import from_file
@@ -11,22 +10,18 @@ from ankification.rubric import _load_prompt
 from ankification.server.session import ReviewSession
 
 
-def _usage(p: int, c: int) -> CompletionUsage:
-    return CompletionUsage(prompt_tokens=p, completion_tokens=c, total_tokens=p + c)
-
-
 def test_cost_tracker_accumulates_and_caps():
     t = CostTracker(budget_usd=1.0)
-    t.record("gpt-5.5", _usage(1000, 1000))
+    t.record("gpt-5.5", 1000, 1000)
     assert t.n_calls == 1 and t.spent_usd > 0
     with pytest.raises(BudgetExceededError):
-        t.record("gpt-5.5", _usage(10_000_000, 10_000_000))
+        t.record("gpt-5.5", 10_000_000, 10_000_000)
 
 
 def test_cost_tracker_no_budget_never_raises():
     t = CostTracker()
     for _ in range(5):
-        t.record("gpt-5.5", _usage(10_000_000, 10_000_000))
+        t.record("gpt-5.5", 10_000_000, 10_000_000)
     assert t.n_calls == 5
 
 
@@ -67,6 +62,29 @@ def test_session_approved_cards_respects_decisions():
     assert fronts == ["qa", "qb-edited"]
     assert session.pending_count() == 0
     assert [card.front for card in session.discarded_cards()] == ["qc"]
+
+
+def test_carried_cards_keeps_pending_and_accepted_drops_discarded():
+    pending = Card(front="p", back="1")
+    accepted = Card(front="a", back="2")
+    edited = Card(front="e", back="3")
+    discarded = Card(front="d", back="4")
+    src = Source(title="s")
+    session = ReviewSession(
+        source=src,
+        rounds=[CardSet(source=src, cards=[pending, accepted, edited, discarded])],
+    )
+    session.decisions[accepted.id] = ReviewDecision(card_id=accepted.id, action=ReviewAction.ACCEPT)
+    new_edit = Card(front="e-edited", back="3!")
+    session.decisions[edited.id] = ReviewDecision(
+        card_id=edited.id, action=ReviewAction.EDIT, edited_card=new_edit
+    )
+    session.decisions[discarded.id] = ReviewDecision(
+        card_id=discarded.id, action=ReviewAction.DISCARD
+    )
+    carried = [c.front for c in session.carried_cards()]
+    # pending + accepted + (edited as its edited text), in order; discarded dropped
+    assert carried == ["p", "a", "e-edited"]
 
 
 def test_ingest_rejects_binary(tmp_path):

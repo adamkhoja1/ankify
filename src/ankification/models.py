@@ -36,6 +36,7 @@ class Card(BaseModel):
     cloze_text: str = ""
     extra: str = ""
     tags: list[str] = Field(default_factory=list)
+    subdeck: str = ""  # sub-deck relative to the session deck, e.g. "Ch01 - The Market"
     source_ref: str = ""  # short anchoring quote/locator from the source
     rationale: str = ""  # why this card exists; not imported into Anki
 

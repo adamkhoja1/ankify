@@ -24,6 +24,26 @@ self-contained, not yes/no, faithful to the source, concise. Prefer fewer excell
 Cloze is allowed where a fill-in-the-blank on a specific term is the cleaner test; Basic Q&A
 is the default. Reversible pairs only for true bidirectional associations.
 
+## Where cards live
+
+Cards persist in a **project-local store** under `.ankify/` in the working directory (not
+synced anywhere by default), so each folder/project keeps its own decks:
+
+```
+.ankify/
+  sessions/<name>.json    one review session per named deck/topic (resumable)
+  media/                  images referenced by cards
+  exports/<name>.apkg     accepted cards, rewritten continuously as the user reviews
+```
+
+Address a session by `--name <name>` (default `default`) — pick a short name per deck/topic
+(e.g. `--name varian`). All commands below are per-`name`.
+
+The judge/generator **model** (OpenAI or Anthropic, model name, reasoning effort, API key) is
+set once via the **gear icon** in the review app (top-right), stored at
+`~/.config/ankify/config.json`; env vars (`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`) are the
+fallback.
+
 ## Process
 
 ### 1. Get the source into markdown first
@@ -58,37 +78,59 @@ refactor vague or non-atomic ones, tighten wording. Do at least two review passe
 
 - **Interactive (recommended):** you (Claude) generate and self-review in-context, then write
   the approved-for-review cards as a JSON array of card objects and seed the review app:
-  `uv run ankification seed cards.json --source-path source.md --notes "<scope>"`.
+  `uv run ankification seed cards.json --source-path source.md --name <name> --notes "<scope>"`.
   Card JSON fields: `type` (`basic`|`cloze`|`reversible`), `front`, `back`, `cloze_text`
-  (with `{{c1::...}}`), `extra`, `tags`, `source_ref`, `rationale`. Leave unused fields `""`.
-- **Programmatic:** `uv run ankification generate --source-path source.md --notes "<scope>"`
-  generates and self-reviews via the API into the session.
+  (with `{{c1::...}}`), `extra`, `subdeck`, `tags`, `source_ref`, `rationale`. Leave unused
+  fields `""`. For images, put files in `.ankify/media/` and reference them with a bare
+  `<img src="figure.png">` (any format: png/jpg/svg).
+  **Subdecks:** for larger / multi-section texts, set each card's `subdeck` **by default** to a
+  clean chapter/section label (e.g. `Ch01 - The Market`) so cards land in Anki subdecks
+  `<deck>::<subdeck>`; leave it empty for a single-topic source. Follow the user's grouping if
+  they give one; ask only if genuinely ambiguous. Users can edit a card's subdeck in the review
+  app.
+- **Programmatic:** `uv run ankification generate --source-path source.md --name <name>
+  --notes "<scope>"` generates and self-reviews via the API into the session.
 
 ### 4. Human review loop
 
 Launch the review web app and let the user flip through cards:
 
 ```
-uv run ankification serve
+uv run ankification serve --name <name>
 ```
 
-They accept / edit / discard each card and can leave feedback. **Regenerate round** produces
-a new round that keeps approved cards, drops what they discarded, and addresses their
-feedback. Repeat until they approve the set (unless they asked for minimal input).
+They accept / edit / discard each card and can leave feedback. **Regenerate round** carries
+forward pending and accepted cards, drops what they discarded, and adds cards from their
+requests + revisions of cards discarded with feedback. Repeat until they approve the set
+(unless they asked for minimal input). Accepted cards stream into
+`.ankify/exports/<name>.apkg` as they go.
 
 Be liberal about asking open-ended questions between rounds where it helps ("These came out
 shallow — want more 'why/how' cards, or broader coverage?"), but only when it adds value.
 
-### 5. Import into Anki
+### 5. Get the cards into Anki
 
-When the user approves, import the approved cards (Basic + Cloze) and sync:
+Accepted cards are written **continuously** to `.ankify/exports/<name>.apkg` — **no AnkiConnect
+needed**. The user imports by clicking **"Download accepted .apkg"** in the review app (or
+grabbing `.ankify/exports/<name>.apkg` directly) and double-clicking it / File → Import in Anki.
+The package carries Basic + Cloze + images and is GUID-stable, so re-importing an updated
+package **updates** notes instead of duplicating.
+
+Optional live one-click sync (needs Anki open with the AnkiConnect add-on, code 2055492159):
+the app's "Import approved → Anki" button, or `uv run ankification push --name <name> --deck
+"<Deck>"`.
+
+## Resuming a review
+
+Card sets persist, so the user can stop and return any time. To pick up where they left off:
 
 ```
-uv run ankification push --deck "<Deck Name>"
+uv run ankification sessions            # list sessions: name, accepted, pending
+uv run ankification serve --name <name>   # reopen the review app in the browser
 ```
 
-Requires Anki open with the AnkiConnect add-on (code 2055492159). If Anki isn't running, the
-session is saved — tell the user they can re-run `push` once Anki is open.
+When the user says "let's keep working on my <topic> cards," run `ankification sessions` to
+find the set, then `serve --name <name>` to reopen the frontend for them.
 
 ## Quality checklist (before surfacing cards)
 

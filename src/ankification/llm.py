@@ -1,35 +1,42 @@
-"""LLM client: structured completions on GPT-5.5 with cost tracking.
+"""LLM client: structured, cost-tracked completions across providers.
 
 Generation, self-review, and the eval judge all go through `LLM.parse`, which returns a
-Pydantic-typed response via OpenAI structured outputs. Reasoning effort is per-call
-(default `high` for generation and judging; cheaper tiers for incidental calls). A shared
-`CostTracker` accumulates spend and raises `BudgetExceededError` at the cap so the eval
-stays bounded. Reads `OPENAI_API_KEY` from the environment (`.env` loaded on import).
+Pydantic-typed result. The provider/model/effort/key come from `ModelConfig` (config.py),
+configurable from the settings panel. Both providers use their native structured-output
+`.parse()` helper — OpenAI `chat.completions.parse(response_format=...)` and Anthropic
+`messages.parse(output_format=...)` — so the only per-provider difference is where the
+`effort` knob goes (OpenAI `reasoning_effort`, Anthropic `output_config.effort` + adaptive
+thinking). A shared `CostTracker` accumulates spend and raises `BudgetExceededError` at the cap.
 """
 
 from __future__ import annotations
 
 import logging
+import warnings
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, cast
 
+from anthropic import Anthropic, BadRequestError
 from dotenv import load_dotenv
 from openai import OpenAI
-from openai.types import CompletionUsage
 from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel
+
+from .config import ModelConfig, load_config
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "gpt-5.5"
-Effort = Literal["minimal", "low", "medium", "high"]
 
-# (input, output) USD per token. gpt-5.5 figures are an ESTIMATE pending confirmation;
-# token counts in CostTracker are the source of truth. Override per model as needed.
+# (input, output) USD per token; token counts are the source of truth, prices are estimates.
 _PRICING: dict[str, tuple[float, float]] = {
     "gpt-5.5": (1.25e-6, 10.0e-6),
+    "claude-opus-4-8": (5.0e-6, 25.0e-6),
+    "claude-opus-4-7": (5.0e-6, 25.0e-6),
+    "claude-sonnet-4-6": (3.0e-6, 15.0e-6),
+    "claude-haiku-4-5": (1.0e-6, 5.0e-6),
 }
 _DEFAULT_PRICE = (1.25e-6, 10.0e-6)
 
@@ -49,14 +56,12 @@ class CostTracker:
     n_calls: int = 0
     by_effort: dict[str, int] = field(default_factory=dict)
 
-    def record(self, model: str, usage: CompletionUsage, effort: str = "") -> float:
+    def record(self, model: str, in_tokens: int, out_tokens: int, effort: str = "") -> float:
         in_price, out_price = _PRICING.get(model, _DEFAULT_PRICE)
-        in_tok = usage.prompt_tokens
-        out_tok = usage.completion_tokens
-        cost = in_tok * in_price + out_tok * out_price
+        cost = in_tokens * in_price + out_tokens * out_price
         self.spent_usd += cost
-        self.input_tokens += in_tok
-        self.output_tokens += out_tok
+        self.input_tokens += in_tokens
+        self.output_tokens += out_tokens
         self.n_calls += 1
         if effort:
             self.by_effort[effort] = self.by_effort.get(effort, 0) + 1
@@ -75,16 +80,24 @@ class CostTracker:
 
 
 class LLM:
-    """OpenAI client configured for structured, cost-tracked completions."""
+    """Provider-aware client for structured, cost-tracked completions (config-driven)."""
 
     def __init__(
         self,
-        model: str = DEFAULT_MODEL,
+        config: ModelConfig | None = None,
         tracker: CostTracker | None = None,
     ) -> None:
-        self.client = OpenAI()
-        self.model = model
+        self.config = config if config is not None else load_config()
+        self.model = self.config.model
+        self.default_effort = self.config.reasoning_effort
         self.tracker = tracker if tracker is not None else CostTracker()
+        key = self.config.resolved_key() or None
+        if self.config.provider == "anthropic":
+            self._anthropic: Anthropic | None = Anthropic(api_key=key)
+            self._openai: OpenAI | None = None
+        else:
+            self._openai = OpenAI(api_key=key)
+            self._anthropic = None
 
     def parse[T: BaseModel](
         self,
@@ -92,30 +105,72 @@ class LLM:
         user: str,
         schema: type[T],
         system: str | None = None,
-        effort: Effort = "high",
+        effort: str | None = None,
     ) -> T:
-        """Return a validated instance of `schema` from the model.
+        """Return a validated instance of `schema` from the configured model."""
+        eff = effort if effort is not None else self.default_effort
+        if self.config.provider == "anthropic":
+            return self._parse_anthropic(user=user, schema=schema, system=system, effort=eff)
+        return self._parse_openai(user=user, schema=schema, system=system, effort=eff)
 
-        Generation and judging pass `effort="high"`; use lower tiers for cheap incidental
-        calls. OpenAI caches repeated prefixes automatically, so put stable context (the
-        source) first in `system` to get cache discounts across many calls.
-        """
+    def _parse_openai[T: BaseModel](
+        self, *, user: str, schema: type[T], system: str | None, effort: str
+    ) -> T:
+        assert self._openai is not None
         messages: list[ChatCompletionMessageParam] = []
         if system is not None:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": user})
-
-        completion = self.client.chat.completions.parse(
+        completion = self._openai.chat.completions.parse(
             model=self.model,
             messages=messages,
             response_format=schema,
-            reasoning_effort=effort,
+            reasoning_effort=effort,  # type: ignore[arg-type]
         )
         if completion.usage is not None:
-            self.tracker.record(self.model, completion.usage, effort)
+            self.tracker.record(
+                self.model,
+                completion.usage.prompt_tokens,
+                completion.usage.completion_tokens,
+                effort,
+            )
         message = completion.choices[0].message
         if message.refusal:
             raise RuntimeError(f"model refused: {message.refusal}")
         if message.parsed is None:
             raise RuntimeError(f"structured parse returned no output: {message.content!r}")
         return message.parsed
+
+    def _parse_anthropic[T: BaseModel](
+        self, *, user: str, schema: type[T], system: str | None, effort: str
+    ) -> T:
+        # Native structured output: messages.parse(output_format=schema) -> parsed_output.
+        # Reasoning depth is `output_config.effort` paired with adaptive thinking (current Claude
+        # models); older models reject those, so we retry without them on a 400.
+        assert self._anthropic is not None
+        call: dict[str, object] = {
+            "model": self.model,
+            "max_tokens": 16000,
+            "messages": [{"role": "user", "content": user}],
+            "output_format": schema,
+        }
+        if system is not None:
+            call["system"] = system
+        reasoning: dict[str, object] = {"thinking": {"type": "adaptive"}}
+        if effort:
+            reasoning["output_config"] = {"effort": effort}
+
+        with warnings.catch_warnings():  # output_format is "deprecated" but is the parse path
+            warnings.simplefilter("ignore", DeprecationWarning)
+            try:
+                response: Any = self._anthropic.messages.parse(**call, **reasoning)  # type: ignore[arg-type]
+            except BadRequestError:
+                # Older Claude models reject adaptive thinking / effort — retry plain.
+                response = self._anthropic.messages.parse(**call)  # type: ignore[arg-type]
+
+        usage = response.usage
+        self.tracker.record(self.model, usage.input_tokens, usage.output_tokens, effort)
+        parsed = response.parsed_output
+        if parsed is None:
+            raise RuntimeError(f"structured parse returned no output (stop={response.stop_reason})")
+        return cast(T, parsed)

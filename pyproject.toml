@@ -5,7 +5,7 @@ description = "Generate high-quality spaced-repetition flashcards from sources, 
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "anthropic>=0.72.0",
+    "anthropic>=0.109",
     "openai>=2.7.1",
     "pydantic>=2.12.4",
     "python-dotenv>=1.2.1",
@@ -15,6 +15,7 @@ dependencies = [
     "fastapi>=0.118.0",
     "uvicorn[standard]>=0.34.0",
     "datasets>=3.2.0",
+    "genanki>=0.13",
 ]
 
 [project.scripts]

@@ -211,6 +211,7 @@ eval_runs/
 vendor/
 frontend/node_modules/
 .cards/
+.ankify/
 # frontend/dist is committed (force-added) so the skill's `serve` works without a build step
 !frontend/dist/
 !frontend/dist/**

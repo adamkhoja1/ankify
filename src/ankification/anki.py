@@ -7,8 +7,11 @@ clear error if Anki isn't reachable so the caller can tell the user to open Anki
 
 from __future__ import annotations
 
+import base64
 import logging
+import re
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 
@@ -17,6 +20,17 @@ from .models import Card, CardType
 logger = logging.getLogger(__name__)
 
 DEFAULT_URL = "http://localhost:8765"
+
+# Bare Anki-style <img src="file.png"> (not a URL or data URI) — these need media upload.
+_IMG_RE = re.compile(r'<img\b[^>]*?\ssrc="(?!https?:|data:|/)([^"]+)"', re.IGNORECASE)
+
+
+def _referenced_media(cards: list[Card]) -> set[str]:
+    files: set[str] = set()
+    for card in cards:
+        for field in (card.front, card.back, card.cloze_text, card.extra):
+            files.update(_IMG_RE.findall(field))
+    return files
 
 
 class AnkiConnectError(RuntimeError):
@@ -80,23 +94,41 @@ class AnkiConnect:
             fields = {"Front": card.front, "Back": card.back}
             model = "Basic"
         return {
-            "deckName": deck,
+            "deckName": f"{deck}::{card.subdeck}" if card.subdeck else deck,
             "modelName": model,
             "fields": fields,
             "tags": all_tags,
             "options": {"allowDuplicate": False},
         }
 
+    def store_media(self, cards: list[Card], media_dir: str | Path) -> None:
+        """Upload any bare <img>-referenced files from `media_dir` into Anki's collection."""
+        media_dir = Path(media_dir)
+        for filename in _referenced_media(cards):
+            path = media_dir / filename
+            if path.exists():
+                data = base64.b64encode(path.read_bytes()).decode()
+                self._invoke("storeMediaFile", filename=filename, data=data)
+            else:
+                logger.warning("media file referenced but not found: %s", path)
+
     def import_cards(
-        self, cards: list[Card], deck: str, tags: list[str] | None = None
+        self,
+        cards: list[Card],
+        deck: str,
+        tags: list[str] | None = None,
+        media_dir: str | Path | None = None,
     ) -> ImportResult:
         """Add cards to `deck` (creating it if needed). Reversible cards add two notes.
 
         Returns counts of added / duplicate / failed notes. Duplicates (AnkiConnect
-        returns null for a skipped duplicate) are not errors.
+        returns null for a skipped duplicate) are not errors. If `media_dir` is given,
+        referenced image files are uploaded to Anki's media collection first.
         """
         tags = tags or []
         self.ensure_deck(deck)
+        if media_dir is not None:
+            self.store_media(cards, media_dir)
 
         notes: list[dict[str, object]] = []
         for card in cards:
@@ -107,6 +139,7 @@ class AnkiConnect:
                     front=card.back,
                     back=card.front,
                     tags=card.tags,
+                    subdeck=card.subdeck,
                     source_ref=card.source_ref,
                 )
                 notes.append(self._note(reverse, deck, tags))

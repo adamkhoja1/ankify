@@ -21,6 +21,32 @@ class ReviewSession(BaseModel):
     deck: str = ""
     rounds: list[CardSet] = Field(default_factory=list)
     decisions: dict[str, ReviewDecision] = Field(default_factory=dict)
+    requests: list[str] = Field(default_factory=list)  # queued "make a new card about X"
+
+    def carried_cards(self) -> list[Card]:
+        """Cards to carry into the next round, in current-round order: pending (undecided)
+        and accepted cards as-is, edited cards as their edited version. Discards are dropped
+        (unless revised via feedback, which is added separately)."""
+        carried: list[Card] = []
+        for card in self.current_cards():
+            decision = self.decisions.get(card.id)
+            if decision is None or decision.action is ReviewAction.ACCEPT:
+                carried.append(card)
+            elif decision.action is ReviewAction.EDIT and decision.edited_card is not None:
+                carried.append(decision.edited_card)
+            elif decision.action is ReviewAction.EDIT:
+                carried.append(card)
+            # DISCARD: dropped
+        return carried
+
+    def revisions(self) -> list[tuple[Card, str]]:
+        """Discarded cards that carry feedback — (card, feedback) to revise next round."""
+        out: list[tuple[Card, str]] = []
+        for card in self.current_cards():
+            d = self.decisions.get(card.id)
+            if d is not None and d.action is ReviewAction.DISCARD and d.feedback:
+                out.append((card, d.feedback))
+        return out
 
     @property
     def current(self) -> CardSet | None:

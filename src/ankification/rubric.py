@@ -16,7 +16,7 @@ from importlib import resources
 
 from pydantic import BaseModel
 
-from .llm import LLM, Effort
+from .llm import LLM
 from .models import Card, ProbeName, ProbeResult, Tier, Verdict
 
 _PROBE_FILES: dict[ProbeName, str] = {
@@ -57,10 +57,10 @@ class Judge:
     """Scores a card against the rubric using an `LLM`."""
 
     def __init__(
-        self, llm: LLM, probe_effort: Effort = "high", tier_effort: Effort = "high"
+        self, llm: LLM, probe_effort: str | None = None, tier_effort: str | None = None
     ) -> None:
         self.llm = llm
-        self.probe_effort = probe_effort
+        self.probe_effort = probe_effort  # None -> the LLM's configured reasoning effort
         self.tier_effort = tier_effort
 
     def run_probe(self, card: Card, probe: ProbeName) -> ProbeResult:

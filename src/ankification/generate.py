@@ -9,10 +9,11 @@ the programmatic path mirrors what the interactive skill produces.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 
 from pydantic import BaseModel, ValidationError
 
-from .llm import LLM, Effort
+from .llm import LLM
 from .models import Card, CardSet, CardType, Source
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ class _RawCard(BaseModel):
     back: str
     cloze_text: str
     extra: str
+    subdeck: str
     source_ref: str
     rationale: str
     tags: list[str]
@@ -72,9 +74,9 @@ def _to_cards(raw: _RawCardSet) -> list[Card]:
 class Generator:
     """Generates and self-reviews cards from a source via an `LLM`."""
 
-    def __init__(self, llm: LLM, effort: Effort = "high") -> None:
+    def __init__(self, llm: LLM, effort: str | None = None) -> None:
         self.llm = llm
-        self.effort = effort
+        self.effort = effort  # None -> use the LLM's configured reasoning effort
 
     def generate(
         self,
@@ -103,14 +105,61 @@ class Generator:
             f"{_PRINCIPLES}\n\n{coverage} For each card set the appropriate `type` and "
             "fill only the fields "
             "that type uses (Basic/reversible: front+back; cloze: cloze_text with a "
-            "{{c1::...}} deletion, optional extra). Always include a short `source_ref` "
-            "quote/locator and a one-line `rationale`. Leave unused fields as empty strings."
+            "{{c1::...}} deletion, optional extra). If the source spans multiple "
+            "chapters/sections, set `subdeck` to a clean sub-deck label (e.g. "
+            "\"Ch01 - The Market\") relative to the deck; for a single-topic source leave "
+            "`subdeck` empty. Always include a short `source_ref` quote/locator and a one-line "
+            "`rationale`. Leave unused fields as empty strings."
         )
         user = (
             f"{scope_text}Source ({source.kind}) titled {source.title!r}:\n\n{source.markdown}"
         )
         raw = self.llm.parse(user=user, schema=_RawCardSet, system=system, effort=self.effort)
         return CardSet(source=source, cards=_to_cards(raw), round=0)
+
+    def augment(
+        self,
+        source: Source,
+        requests: Sequence[str] = (),
+        revisions: Sequence[tuple[Card, str]] = (),
+        avoid: Sequence[Card] = (),
+    ) -> list[Card]:
+        """Create exactly the cards the user asked for, from the same source.
+
+        `requests` are free-text "make a card about X"; `revisions` are (flawed card,
+        feedback) pairs to rewrite. `avoid` lists existing cards not to duplicate. Returns
+        only the new/revised cards (no broad re-generation, no dropping of requested cards).
+        """
+        if not requests and not revisions:
+            return []
+        parts: list[str] = []
+        if requests:
+            parts.append(
+                "Create ONE high-quality card for EACH of these requests:\n"
+                + "\n".join(f"- {r}" for r in requests)
+            )
+        if revisions:
+            rev = "\n".join(
+                f"- Flawed card: {c.as_qa()}\n  Rewrite per this feedback: {fb}"
+                for c, fb in revisions
+            )
+            parts.append("Rewrite EACH of these into a single better card:\n" + rev)
+        if avoid:
+            parts.append(
+                "Do NOT duplicate these existing cards:\n"
+                + "\n".join(f"- {c.as_qa()}" for c in avoid)
+            )
+        system = (
+            f"{_PRINCIPLES}\n\nProduce EXACTLY the cards requested/revised above — one per "
+            "request and one per card to rewrite, no extras and no omissions. Ground every "
+            "card in the source. Set the appropriate `type` and fill only that type's fields."
+        )
+        user = (
+            "\n\n".join(parts)
+            + f"\n\nSource ({source.kind}) titled {source.title!r}:\n\n{source.markdown}"
+        )
+        raw = self.llm.parse(user=user, schema=_RawCardSet, system=system, effort=self.effort)
+        return _to_cards(raw)
 
     def self_review(self, cardset: CardSet, notes: str = "", rounds: int = 2) -> CardSet:
         """Critique the whole set against the rubric and rewrite it, `rounds` times.
