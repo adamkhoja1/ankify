@@ -5,8 +5,8 @@ import sqlite3
 import zipfile
 from pathlib import Path
 
-from ankification.export import to_apkg
-from ankification.models import Card, CardType
+from ankify.export import to_apkg
+from ankify.models import Card, CardType
 
 
 def _cards() -> list[Card]:

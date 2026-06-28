@@ -6,8 +6,8 @@ This migrates an existing session. Run: uv run scripts/edits_to_accepts.py
 
 import fire  # type: ignore[import-untyped]
 
-from ankification.models import ReviewAction, ReviewDecision
-from ankification.server.session import SessionStore
+from ankify.models import ReviewAction, ReviewDecision
+from ankify.server.session import SessionStore
 
 
 def main(session_path: str = ".cards/varian_session.json") -> None:

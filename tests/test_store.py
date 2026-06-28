@@ -1,8 +1,8 @@
 """Tests for the .ankify/ store path resolution and session listing."""
 
-from ankification.models import Card, CardSet, ReviewAction, ReviewDecision, Source
-from ankification.server.session import ReviewSession, SessionStore
-from ankification.store import Store
+from ankify.models import Card, CardSet, ReviewAction, ReviewDecision, Source
+from ankify.server.session import ReviewSession, SessionStore
+from ankify.store import Store
 
 
 def test_store_paths(tmp_path):

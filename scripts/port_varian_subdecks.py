@@ -6,8 +6,8 @@ classify deterministically rather than with an LLM. Re-runs are idempotent.
 
 import re
 
-from ankification.export import to_apkg
-from ankification.server.session import SessionStore
+from ankify.export import to_apkg
+from ankify.server.session import SessionStore
 
 CHAPTERS = {
     1: "Ch01 - The Market",

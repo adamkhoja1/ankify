@@ -1,4 +1,4 @@
-ankification
+ankify
 Copyright 2026 Adam Khoja
 
 This product includes prompt templates adapted from Memory Machines
@@ -6,13 +6,13 @@ This product includes prompt templates adapted from Memory Machines
 licensed under the Apache License, Version 2.0.
 
 The adapted files are:
-  src/ankification/prompts/probe_lacks_context.txt
-  src/ankification/prompts/probe_multiple_responses.txt
-  src/ankification/prompts/probe_shallow.txt
-  src/ankification/prompts/probe_wordy.txt
-  src/ankification/prompts/probe_narrow.txt
-  src/ankification/prompts/tier_grounded.txt
-  src/ankification/prompts/tier_ungrounded.txt
+  src/ankify/prompts/probe_lacks_context.txt
+  src/ankify/prompts/probe_multiple_responses.txt
+  src/ankify/prompts/probe_shallow.txt
+  src/ankify/prompts/probe_wordy.txt
+  src/ankify/prompts/probe_narrow.txt
+  src/ankify/prompts/tier_grounded.txt
+  src/ankify/prompts/tier_ungrounded.txt
 
 They are the LLM-judge instruction prompts from Memory Machines' tiering and
 probes modules, used here to score generated flashcard quality. The original

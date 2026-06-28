@@ -4,9 +4,9 @@ Validates the llm + rubric plumbing end to end. Run with: uv run scripts/smoke_j
 Not collected by pytest (real API spend). Prints verdicts and total cost.
 """
 
-from ankification.llm import LLM, CostTracker
-from ankification.models import Card, CardType
-from ankification.rubric import Judge
+from ankify.llm import LLM, CostTracker
+from ankify.models import Card, CardType
+from ankify.rubric import Judge
 
 SOURCE = (
     "Chicken stock is made by simmering bones in water for hours. The collagen in the "

@@ -1,4 +1,4 @@
-# ankification — design spec
+# ankify — design spec
 
 Status: **draft, pending sign-off.** See `docs/RESEARCH.md` for the evidence base and
 `docs/RUBRIC.md` (to be written) for the implementable rubric.
@@ -10,7 +10,7 @@ of high-quality spaced-repetition cards, through a loop of LLM generation, rubri
 self-review, and human approval — then import into Anki. The same rubric powers an **eval
 harness** we actually run to iterate the generator against a validation set.
 
-The skill lives here (in `~/Projects/ankification`) and is linked into the
+The skill lives here (in `~/Projects/ankify`) and is linked into the
 `cais_informal_marketplace` marketplace by git URL, mirroring `to_md`.
 
 ## Principles (from research)
@@ -30,11 +30,11 @@ The skill lives here (in `~/Projects/ankification`) and is linked into the
 ## Repo layout (flat, per code-preferences)
 
 ```
-ankification/
+ankify/
   .claude-plugin/plugin.json        # marketplace plugin manifest (mirrors to_md)
   skills/ankify/SKILL.md            # the skill, moved out of cais_informal_marketplace
   skills/ankify/principles.md       # condensed card-writing guidance (kept in sync w/ rubric)
-  src/ankification/
+  src/ankify/
     models.py            # pydantic: Card, CardType, CardSet, Source, RubricScore, Verdict...
     ingest.py            # source -> clean markdown (to_md / pandoc-arxiv); chunking
     generate.py          # markdown + notes -> candidate cards (Anthropic)
@@ -120,7 +120,7 @@ ankification/
 ## Marketplace linking
 
 - Add `.claude-plugin/plugin.json` (name `ankify`) + move `skills/ankify/`.
-- Push `ankification` to GitHub; change the `ankify` entry in
+- Push `ankify` to GitHub; change the `ankify` entry in
   `cais_informal_marketplace/.claude-plugin/marketplace.json` from `./plugins/ankify` to the
   `git@github.com:...` URL, matching `to_md`. Remove the old in-repo `plugins/ankify/`.
 

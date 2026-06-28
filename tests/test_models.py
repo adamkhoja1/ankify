@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from ankification.models import (
+from ankify.models import (
     Card,
     CardSet,
     CardType,

@@ -7,9 +7,9 @@ approved/pending bookkeeping that import and regenerate depend on.
 import pytest
 from fastapi.testclient import TestClient
 
-from ankification.models import Card, CardSet, Source
-from ankification.server.app import create_app
-from ankification.server.session import ReviewSession, SessionStore
+from ankify.models import Card, CardSet, Source
+from ankify.server.app import create_app
+from ankify.server.session import ReviewSession, SessionStore
 
 
 @pytest.fixture

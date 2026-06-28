@@ -1,4 +1,4 @@
-"""ankification CLI (fire).
+"""ankify CLI (fire).
 
 Cards live in a project-local store under `.ankify/` (relative to the current directory):
   .ankify/sessions/<name>.json   one review session per named deck/topic

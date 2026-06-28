@@ -274,8 +274,8 @@ def default_app() -> FastAPI:
     from ..store import Store
 
     store = Store()
-    name = os.environ.get("ANKIFICATION_NAME", "default")
-    session_path = os.environ.get("ANKIFICATION_SESSION") or str(store.session_path(name))
+    name = os.environ.get("ANKIFY_NAME", "default")
+    session_path = os.environ.get("ANKIFY_SESSION") or str(store.session_path(name))
     return create_app(
         session_path, media_dir=store.media_dir, export_path=store.export_path(name)
     )

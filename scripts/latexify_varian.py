@@ -6,7 +6,7 @@ keyed by card id, so they're preserved. Run: uv run scripts/latexify_varian.py
 
 import re
 
-from ankification.server.session import SessionStore
+from ankify.server.session import SessionStore
 
 # Ordered longest/most-specific first so we don't partially rewrite inside a bigger match.
 REPLACEMENTS = [

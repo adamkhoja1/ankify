@@ -16,9 +16,9 @@ from pathlib import Path
 
 import fire  # type: ignore[import-untyped]
 
-from ankification.llm import LLM, CostTracker
-from ankification.models import Card, CardType, Verdict
-from ankification.rubric import Judge
+from ankify.llm import LLM, CostTracker
+from ankify.models import Card, CardType, Verdict
+from ankify.rubric import Judge
 
 VAULT = Path("/Users/adam/Documents/Vault/Study/econ_study")
 MD_DIR = VAULT / "varian_intermediate_microeconomics.md"

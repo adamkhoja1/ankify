@@ -1,4 +1,4 @@
-"""Core data models for ankification.
+"""Core data models for ankify.
 
 A `Card` is the unit produced, reviewed, and imported. A `CardSet` ties cards to the
 `Source` they came from. `Verdict`/`ProbeResult` capture rubric judgments (see

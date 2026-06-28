@@ -31,7 +31,7 @@ _PROBE_FILES: dict[ProbeName, str] = {
 @cache
 def _load_prompt(filename: str) -> str:
     """Read a vendored prompt, dropping its output-format section."""
-    text = resources.files("ankification.prompts").joinpath(filename).read_text()
+    text = resources.files("ankify.prompts").joinpath(filename).read_text()
     for marker in ("## Output Format", "## Output format", "You must respond with a JSON"):
         idx = text.find(marker)
         if idx != -1:

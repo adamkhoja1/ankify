@@ -7,8 +7,8 @@ carried = pending + accepted + edited (discards dropped). Run once:
 
 import fire  # type: ignore[import-untyped]
 
-from ankification.models import ReviewAction
-from ankification.server.session import SessionStore
+from ankify.models import ReviewAction
+from ankify.server.session import SessionStore
 
 
 def main(session_path: str = ".cards/varian_session.json") -> None:

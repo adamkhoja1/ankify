@@ -6,7 +6,7 @@ the evidence base, `RUBRIC.md` for the card-quality rubric, `EVAL.md` for eval f
 ## Layout
 
 ```
-src/ankification/
+src/ankify/
   models.py        pydantic: Card, CardType, CardSet, Source, Tier, ProbeName, Verdict, ReviewDecision
   llm.py           LLM (OpenAI/GPT-5.5 structured outputs via chat.completions.parse) + CostTracker
   rubric.py        Judge: five binary probes + holistic T0-T3 tier (grounded/ungrounded)
@@ -44,7 +44,7 @@ scripts/           smoke_judge.py, smoke_generate.py, run_eval.py
 decks (`rubric.Judge`), and **calibrates** the judge against human tier labels. Metrics:
 % usable (T2+T3), tier distribution, per-probe failure rates, exact/usable agreement vs human.
 Reports → `eval_runs/` (gitignored). To iterate: edit `generate._PRINCIPLES` or the prompts,
-re-run `ankification eval`, diff reports.
+re-run `ankify eval`, diff reports.
 
 ## LLM layer
 
@@ -57,5 +57,5 @@ callers (an Anthropic key was not available this session; see SPEC decision 1).
 ## Conventions
 
 Python 3.13 + uv; pydantic; fire CLI; pytest. Run `uv run ruff check --fix .` and
-`uv run mypy .` before committing. Real-API runs live in `scripts/` and `ankification eval`,
+`uv run mypy .` before committing. Real-API runs live in `scripts/` and `ankify eval`,
 not in the pytest suite (which stays offline and green).

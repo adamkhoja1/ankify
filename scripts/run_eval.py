@@ -12,16 +12,16 @@ from pathlib import Path
 
 import fire
 
-from ankification.eval.datasets import load_memory_machines
-from ankification.eval.harness import (
+from ankify.eval.datasets import load_memory_machines
+from ankify.eval.harness import (
     calibrate_judge,
     evaluate_generation,
     reference_ceiling,
     render_report,
 )
-from ankification.generate import Generator
-from ankification.llm import LLM, BudgetExceededError, CostTracker
-from ankification.rubric import Judge
+from ankify.generate import Generator
+from ankify.llm import LLM, BudgetExceededError, CostTracker
+from ankify.rubric import Judge
 
 
 def main(
@@ -68,7 +68,7 @@ def main(
 
 
 def _empty_metrics():
-    from ankification.eval.harness import GenMetrics
+    from ankify.eval.harness import GenMetrics
 
     return GenMetrics()
 

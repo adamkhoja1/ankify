@@ -3,9 +3,9 @@
 Run with: uv run scripts/smoke_generate.py   (real API spend; not collected by pytest.)
 """
 
-from ankification.generate import Generator
-from ankification.llm import LLM, CostTracker
-from ankification.models import Source
+from ankify.generate import Generator
+from ankify.llm import LLM, CostTracker
+from ankify.models import Source
 
 SOURCE = Source(
     title="The testing effect",

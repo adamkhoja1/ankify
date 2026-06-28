@@ -4,8 +4,8 @@ Run: uv run scripts/make_demo_session.py   then serve it on a separate port.
 Images reference SVGs in .cards/media/ (served at /media by the app).
 """
 
-from ankification.models import Card, CardSet, CardType, Source
-from ankification.server.session import ReviewSession, SessionStore
+from ankify.models import Card, CardSet, CardType, Source
+from ankify.server.session import ReviewSession, SessionStore
 
 CARDS = [
     Card(

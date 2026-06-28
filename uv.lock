@@ -14,7 +14,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-06-15T06:57:28.073208Z"
+exclude-newer = "2026-06-21T06:14:08.448164Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -120,7 +120,7 @@ wheels = [
 ]
 
 [[package]]
-name = "ankification"
+name = "ankify"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

@@ -10,8 +10,8 @@ Turn a source (paper, chapter, web page, transcript) plus the user's own notes i
 high-quality spaced-repetition cards, through generation, rubric-driven self-review, and a
 human review loop, then import into Anki.
 
-This skill is backed by the `ankification` library (this repo). Run commands with
-`uv run ankification <command>` from the repo root, or `ankification <command>` if installed.
+This skill is backed by the `ankify` library (this repo). Run commands with
+`uv run ankify <command>` from the repo root, or `ankify <command>` if installed.
 
 ## Principles
 
@@ -52,8 +52,8 @@ Always convert to clean markdown before generating — extraction quality domina
 quality.
 
 - PDF / DOCX / EPUB / URL → use the **`to_md`** skill.
-- A paper on arXiv → prefer LaTeX source over PDF: `uv run ankification` exposes
-  `ankification.ingest.arxiv_to_markdown(arxiv_id)` (pandoc on the e-print), or use `to_md`.
+- A paper on arXiv → prefer LaTeX source over PDF: `uv run ankify` exposes
+  `ankify.ingest.arxiv_to_markdown(arxiv_id)` (pandoc on the e-print), or use `to_md`.
 - Already markdown/text → use as-is.
 
 ### 2. Clarify scope — only where it adds concrete value
@@ -78,7 +78,7 @@ refactor vague or non-atomic ones, tighten wording. Do at least two review passe
 
 - **Interactive (recommended):** you (Claude) generate and self-review in-context, then write
   the approved-for-review cards as a JSON array of card objects and seed the review app:
-  `uv run ankification seed cards.json --source-path source.md --name <name> --notes "<scope>"`.
+  `uv run ankify seed cards.json --source-path source.md --name <name> --notes "<scope>"`.
   Seeding into an existing session *extends* it (carries prior cards + decisions forward, appends
   the new ones) — see "Resuming a review"; `--source-path` is only needed when creating the session.
   Card JSON fields: `type` (`basic`|`cloze`|`reversible`), `front`, `back`, `cloze_text`
@@ -90,7 +90,7 @@ refactor vague or non-atomic ones, tighten wording. Do at least two review passe
   `<deck>::<subdeck>`; leave it empty for a single-topic source. Follow the user's grouping if
   they give one; ask only if genuinely ambiguous. Users can edit a card's subdeck in the review
   app.
-- **Programmatic:** `uv run ankification generate --source-path source.md --name <name>
+- **Programmatic:** `uv run ankify generate --source-path source.md --name <name>
   --notes "<scope>"` generates and self-reviews via the API into the session.
 
 ### 4. Human review loop
@@ -98,7 +98,7 @@ refactor vague or non-atomic ones, tighten wording. Do at least two review passe
 Launch the review web app and let the user flip through cards:
 
 ```
-uv run ankification serve --name <name>
+uv run ankify serve --name <name>
 ```
 
 They accept / edit / discard each card and can leave feedback. **Regenerate round** carries
@@ -119,7 +119,7 @@ The package carries Basic + Cloze + images and is GUID-stable, so re-importing a
 package **updates** notes instead of duplicating.
 
 Optional live one-click sync (needs Anki open with the AnkiConnect add-on, code 2055492159):
-the app's "Import approved → Anki" button, or `uv run ankification push --name <name> --deck
+the app's "Import approved → Anki" button, or `uv run ankify push --name <name> --deck
 "<Deck>"`.
 
 ## Resuming a review
@@ -127,11 +127,11 @@ the app's "Import approved → Anki" button, or `uv run ankification push --name
 Card sets persist, so the user can stop and return any time. To pick up where they left off:
 
 ```
-uv run ankification sessions            # list sessions: name, accepted, pending
-uv run ankification serve --name <name>   # reopen the review app in the browser
+uv run ankify sessions            # list sessions: name, accepted, pending
+uv run ankify serve --name <name>   # reopen the review app in the browser
 ```
 
-When the user says "let's keep working on my <topic> cards," run `ankification sessions` to
+When the user says "let's keep working on my <topic> cards," run `ankify sessions` to
 find the set, then `serve --name <name>` to reopen the frontend for them.
 
 **Extending is non-destructive.** Re-running `seed` (or `generate`) against an existing session
@@ -153,6 +153,6 @@ from just the new cards.
 
 ## Iterating on this skill
 
-The verification loop lives in `src/ankification/eval/`. Run
-`uv run ankification eval --limit 10` (or `scripts/run_eval.py`) to score generation against
+The verification loop lives in `src/ankify/eval/`. Run
+`uv run ankify eval --limit 10` (or `scripts/run_eval.py`) to score generation against
 the validation set and calibrate the judge; see `docs/EVAL.md`.

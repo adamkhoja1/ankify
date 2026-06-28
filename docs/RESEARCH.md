@@ -1,6 +1,6 @@
 # Research: what makes a good spaced-repetition card, and how to evaluate generators
 
-Consolidated findings backing the ankification rework. Three sources: a synthesized
+Consolidated findings backing the ankify rework. Three sources: a synthesized
 card-quality rubric, the *Memory Machines* paper (the key prior art on LLM-generated
 cards), and a scouted validation set. Everything here feeds the generator prompts,
 the self-review pass, and the eval harness.

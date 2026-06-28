@@ -2,12 +2,12 @@
 
 import pytest
 
-from ankification.eval.datasets import parse_qa
-from ankification.ingest import from_file
-from ankification.llm import BudgetExceededError, CostTracker
-from ankification.models import Card, CardSet, CardType, ReviewAction, ReviewDecision, Source
-from ankification.rubric import _load_prompt
-from ankification.server.session import ReviewSession
+from ankify.eval.datasets import parse_qa
+from ankify.ingest import from_file
+from ankify.llm import BudgetExceededError, CostTracker
+from ankify.models import Card, CardSet, CardType, ReviewAction, ReviewDecision, Source
+from ankify.rubric import _load_prompt
+from ankify.server.session import ReviewSession
 
 
 def test_cost_tracker_accumulates_and_caps():

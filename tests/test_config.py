@@ -1,6 +1,6 @@
 """Tests for the global model config (load/save + env fallback)."""
 
-from ankification.config import ModelConfig, load_config, save_config
+from ankify.config import ModelConfig, load_config, save_config
 
 
 def test_config_round_trip(tmp_path, monkeypatch):

@@ -4,7 +4,7 @@ Generates + self-reviews per chapter (balanced coverage), merges into one review
 keeps the full chapter text on the session source so the app's "regenerate round" works.
 
 Usage: uv run scripts/gen_varian.py
-Then:  uv run ankification serve --session .cards/varian_session.json
+Then:  uv run ankify serve --session .cards/varian_session.json
 """
 
 from __future__ import annotations
@@ -13,10 +13,10 @@ from pathlib import Path
 
 import fire  # type: ignore[import-untyped]
 
-from ankification.generate import Generator
-from ankification.llm import LLM, CostTracker
-from ankification.models import CardSet, Source
-from ankification.server.session import ReviewSession, SessionStore
+from ankify.generate import Generator
+from ankify.llm import LLM, CostTracker
+from ankify.models import CardSet, Source
+from ankify.server.session import ReviewSession, SessionStore
 
 MD_DIR = Path(
     "/Users/adam/Documents/Vault/Study/econ_study/varian_intermediate_microeconomics.md"

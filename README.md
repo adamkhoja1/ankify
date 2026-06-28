@@ -1,4 +1,4 @@
-# ankification
+# ankify
 
 Generate high-quality spaced-repetition (Anki) flashcards from a source, with a
 rubric-driven review loop and an eval harness. Also packages the `ankify` Claude Code skill
@@ -23,19 +23,19 @@ Anki import needs Anki open with the AnkiConnect add-on (code 2055492159).
 
 ```bash
 # Generate + self-review cards from a markdown source into a review session
-uv run ankification generate --source-path paper.md --notes "focus on the method"
+uv run ankify generate --source-path paper.md --notes "focus on the method"
 
 # Or seed the review app with cards you generated yourself (JSON array of card objects)
-uv run ankification seed cards.json --source-path paper.md
+uv run ankify seed cards.json --source-path paper.md
 
 # Review in the browser: flip, accept/edit/discard, leave feedback, regenerate a round
-uv run ankification serve
+uv run ankify serve
 
 # Import the approved cards into Anki and sync
-uv run ankification push --deck "My Deck"
+uv run ankify push --deck "My Deck"
 
 # Run the verification loop on the validation set
-uv run ankification eval --limit 10
+uv run ankify eval --limit 10
 ```
 
 See `docs/ARCHITECTURE.md` for the design and `docs/RUBRIC.md` for the card-quality rubric.

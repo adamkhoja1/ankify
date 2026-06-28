@@ -206,7 +206,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# ankification
+# ankify
 eval_runs/
 vendor/
 frontend/node_modules/

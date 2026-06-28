@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from ankification.cli import CLI, _resolve
-from ankification.models import Card, CardSet, ReviewAction, ReviewDecision, Source
-from ankification.server.session import ReviewSession, SessionStore
+from ankify.cli import CLI, _resolve
+from ankify.models import Card, CardSet, ReviewAction, ReviewDecision, Source
+from ankify.server.session import ReviewSession, SessionStore
 
 
 def _note_count(apkg: Path) -> int:
