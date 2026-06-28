@@ -37,6 +37,17 @@ Apply stringency to the **question** (it cues recall). The **answer** may add br
 - **Reversible** — a pair (imported as two notes) only for true bidirectional associations
   (term ↔ definition, symbol ↔ meaning).
 
+## Math formatting
+
+- Wrap **all** mathematical notation in MathJax delimiters — inline `\( ... \)`, display
+  `\[ ... \]` — so it renders in Anki.
+- This includes **single letters used as variables**: `income \(m\)`, `price \(p_1\)`,
+  `bundle \(X\)`, `\(t > 0\)` — not bare `m`, `p1`, `X`. Write subscripts as `x_1`, not `x1`.
+- Inside math, use LaTeX for relations/operators: `\le \ge \lt \gt \succ \succeq \sim` etc.
+  Don't use raw `<`/`>` or HTML `&lt;`/`&gt;` inside `\( \)` — they don't render.
+- Keep **plain text** (not math): acronyms that name a concept (MRS, MU, MC, GDP) and axis
+  names (x-axis, y-axis). A subscripted form like `\(MU_1\)` is still a variable, so wrap it.
+
 ## Practical
 
 - Prefer fewer, better cards. 10 precise cards beat 50 vague ones.
