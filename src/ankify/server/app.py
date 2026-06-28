@@ -25,7 +25,7 @@ from ..export import to_apkg
 from ..generate import Generator
 from ..llm import LLM
 from ..models import Card, CardSet, ReviewAction, ReviewDecision
-from .session import ReviewSession, SessionStore
+from .session import ReviewSession, SessionStore, SourceStore
 
 logger = logging.getLogger(__name__)
 
@@ -72,19 +72,23 @@ def _subdeck_counts(session: ReviewSession) -> list[dict[str, object]]:
     return [{"name": name, "count": n} for name, n in sorted(counts.items())]
 
 
-def _regenerate(session: ReviewSession) -> CardSet:
+def _regenerate(session: ReviewSession, source_store: SourceStore) -> CardSet:
     """Build the next round: carry over still-pending and accepted/edited cards, drop
     discards, and append requested new cards plus revisions of cards discarded with
     feedback. Pending cards are preserved so a regenerate never loses unreviewed cards."""
     carried = session.carried_cards()
+    source_id = session.rounds[-1].source_id if session.rounds else ""
+    source = source_store.get(source_id)
+    if source is None:
+        raise HTTPException(400, "no source recorded for this session; cannot regenerate")
     new_cards = Generator(LLM()).augment(
-        session.source,
+        source,
         requests=session.requests,
         revisions=session.revisions(),
         avoid=carried + session.discarded_cards(),
     )
     new_round = CardSet(
-        source=session.source,
+        source_id=source_id,
         cards=carried + new_cards,
         round=len(session.rounds),
     )
@@ -98,12 +102,17 @@ def create_app(
     anki_url: str | None = None,
     media_dir: str | Path = ".ankify/media",
     export_path: str | Path | None = None,
+    sources_path: str | Path | None = None,
 ) -> FastAPI:
     store = SessionStore(session_path)
     anki = AnkiConnect(anki_url) if anki_url else AnkiConnect()
     media_path = Path(media_dir)
     media_path.mkdir(parents=True, exist_ok=True)
     export_file = Path(export_path) if export_path else Path(session_path).with_suffix(".apkg")
+    sources_file = (
+        Path(sources_path) if sources_path else Path(session_path).with_suffix(".sources.json")
+    )
+    source_store = SourceStore(sources_file)
     app = FastAPI(title="ankify review")
 
     def _require_session() -> ReviewSession:
@@ -227,7 +236,7 @@ def create_app(
             raise HTTPException(
                 503, "No API key configured for the selected provider — set one in Settings."
             )
-        new_round = _regenerate(session)
+        new_round = _regenerate(session, source_store)
         _persist(session, background_tasks)
         return {"round": new_round.round, "cards": [c.model_dump() for c in new_round.cards]}
 
@@ -277,5 +286,8 @@ def default_app() -> FastAPI:
     name = os.environ.get("ANKIFY_NAME", "default")
     session_path = os.environ.get("ANKIFY_SESSION") or str(store.session_path(name))
     return create_app(
-        session_path, media_dir=store.media_dir, export_path=store.export_path(name)
+        session_path,
+        media_dir=store.media_dir,
+        export_path=store.export_path(name),
+        sources_path=store.sources_path(name),
     )

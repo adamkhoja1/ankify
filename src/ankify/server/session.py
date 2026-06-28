@@ -1,13 +1,16 @@
 """Review-session state: a persisted working set of cards plus the user's decisions.
 
-A session holds the source, the user's notes, a history of generation rounds, and the
-per-card accept/edit/discard decisions. It is the shared artifact between the skill (which
-seeds it and can regenerate), the review web app, and the Anki import. Persisted as JSON so
-a review is resumable.
+A session holds the user's notes, a history of generation rounds, and the per-card
+accept/edit/discard decisions. Rounds reference their source by id; the source text itself
+lives in a separate, content-addressed `SourceStore` (so it is stored once and never
+embedded in the session). It is the shared artifact between the skill (which seeds it and
+can regenerate), the review web app, and the Anki import. Persisted as JSON so a review is
+resumable.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -16,7 +19,6 @@ from ..models import Card, CardSet, ReviewAction, ReviewDecision, Source
 
 
 class ReviewSession(BaseModel):
-    source: Source
     notes: str = ""
     deck: str = ""
     rounds: list[CardSet] = Field(default_factory=list)
@@ -98,3 +100,36 @@ class SessionStore:
     def save(self, session: ReviewSession) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(session.model_dump_json(indent=2))
+
+
+class SourceStore:
+    """Content-addressed registry of `Source`s, persisted as `{sid: source}` JSON.
+
+    Each distinct source is stored once (keyed by `Source.sid()`); rounds reference it by id.
+    Keeping source text here — out of the session file — means the (often large, sometimes
+    copyrighted) markdown is never duplicated across rounds and can be git-ignored on its own.
+    """
+
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+
+    def load(self) -> dict[str, Source]:
+        if not self.path.exists():
+            return {}
+        raw = json.loads(self.path.read_text())
+        return {sid: Source.model_validate(data) for sid, data in raw.items()}
+
+    def add(self, source: Source) -> str:
+        """Store `source` if unseen and return its id (idempotent on identical content)."""
+        sid = source.sid()
+        sources = self.load()
+        if sid not in sources:
+            sources[sid] = source
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.path.write_text(
+                json.dumps({k: v.model_dump() for k, v in sources.items()}, indent=2)
+            )
+        return sid
+
+    def get(self, sid: str) -> Source | None:
+        return self.load().get(sid)

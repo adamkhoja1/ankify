@@ -1,7 +1,7 @@
 """Tests for the .ankify/ store path resolution and session listing."""
 
 from ankify.models import Card, CardSet, ReviewAction, ReviewDecision, Source
-from ankify.server.session import ReviewSession, SessionStore
+from ankify.server.session import ReviewSession, SessionStore, SourceStore
 from ankify.store import Store
 
 
@@ -17,9 +17,8 @@ def test_store_paths(tmp_path):
 def test_store_lists_sessions_with_counts(tmp_path):
     store = Store(tmp_path / ".ankify")
     store.ensure()
-    src = Source(title="s")
     cards = [Card(front=f"q{i}", back=str(i)) for i in range(3)]
-    session = ReviewSession(source=src, rounds=[CardSet(source=src, cards=cards)])
+    session = ReviewSession(rounds=[CardSet(source_id="s", cards=cards)])
     session.decisions[cards[0].id] = ReviewDecision(
         card_id=cards[0].id, action=ReviewAction.ACCEPT
     )
@@ -30,3 +29,14 @@ def test_store_lists_sessions_with_counts(tmp_path):
     info = infos[0]
     assert info.name == "varian"
     assert info.cards == 3 and info.accepted == 1 and info.pending == 2
+
+
+def test_source_store_dedupes_by_content(tmp_path):
+    store = SourceStore(tmp_path / "sources.json")
+    a1 = store.add(Source(title="A", markdown="body one"))
+    a2 = store.add(Source(title="A", markdown="body one"))  # identical content
+    b = store.add(Source(title="B", markdown="body two"))
+    assert a1 == a2 != b  # same content -> same id; different content -> different id
+    assert set(store.load()) == {a1, b}  # each distinct source stored exactly once
+    assert store.get(a1).markdown == "body one"
+    assert store.get("missing") is None

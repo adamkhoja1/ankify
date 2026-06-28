@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from ankify.cli import CLI, _resolve
-from ankify.models import Card, CardSet, ReviewAction, ReviewDecision, Source
+from ankify.models import Card, CardSet, ReviewAction, ReviewDecision
 from ankify.server.session import ReviewSession, SessionStore
 
 
@@ -31,11 +31,9 @@ def _seed_initial_session(session_path: Path) -> tuple[str, str]:
     """Persist a session with one accepted + one pending card; return their ids."""
     accepted = Card(front="accepted q", back="a")
     pending = Card(front="pending q", back="p")
-    src = Source(title="ch1-3", markdown="original source")
     review = ReviewSession(
-        source=src,
         deck="Varian",
-        rounds=[CardSet(source=src, cards=[accepted, pending])],
+        rounds=[CardSet(source_id="ch1-3", cards=[accepted, pending])],
     )
     review.decisions[accepted.id] = ReviewDecision(card_id=accepted.id, action=ReviewAction.ACCEPT)
     SessionStore(session_path).save(review)
@@ -48,7 +46,7 @@ def _write_cards(path: Path, fronts: list[str]) -> None:
 
 def test_seed_extends_without_clobbering_accepted(tmp_path):
     store = str(tmp_path / ".ankify")
-    session_path, _, export_path = _resolve("t", None, store)
+    session_path, _, export_path, _ = _resolve("t", None, store)
     acc_id, _ = _seed_initial_session(session_path)
 
     cards_file = tmp_path / "new.json"
@@ -68,7 +66,7 @@ def test_seed_extends_without_clobbering_accepted(tmp_path):
 
 def test_seed_replace_resets_working_set(tmp_path):
     store = str(tmp_path / ".ankify")
-    session_path, _, export_path = _resolve("t", None, store)
+    session_path, _, export_path, _ = _resolve("t", None, store)
     _seed_initial_session(session_path)
 
     cards_file = tmp_path / "new.json"
@@ -82,9 +80,9 @@ def test_seed_replace_resets_working_set(tmp_path):
     assert _note_count(export_path) == 0
 
 
-def test_seed_extend_keeps_existing_source_and_deck(tmp_path):
+def test_seed_extend_inherits_source_id_and_keeps_deck(tmp_path):
     store = str(tmp_path / ".ankify")
-    session_path, _, _ = _resolve("t", None, store)
+    session_path, _, _, _ = _resolve("t", None, store)
     _seed_initial_session(session_path)
 
     cards_file = tmp_path / "new.json"
@@ -92,8 +90,8 @@ def test_seed_extend_keeps_existing_source_and_deck(tmp_path):
     CLI().seed(str(cards_file), name="t", store=store)  # no --source_path/--text given
 
     review = SessionStore(session_path).load()
-    assert review.source.title == "ch1-3"  # existing source/notes not clobbered
-    assert review.deck == "Varian"
+    assert review.deck == "Varian"  # metadata not clobbered
+    assert review.rounds[-1].source_id == "ch1-3"  # prior source id carried forward
 
 
 def test_seed_new_session_requires_source(tmp_path):
@@ -102,3 +100,24 @@ def test_seed_new_session_requires_source(tmp_path):
     _write_cards(cards_file, ["c1"])
     with pytest.raises(ValueError, match="new session needs a source"):
         CLI().seed(str(cards_file), name="fresh", store=store)
+
+
+def test_seed_stores_source_outside_session_and_dedupes(tmp_path):
+    store = str(tmp_path / ".ankify")
+    session_path, _, _, sources_path = _resolve("t", None, store)
+    cards_file = tmp_path / "c.json"
+
+    _write_cards(cards_file, ["c1"])
+    CLI().seed(str(cards_file), name="t", text="UNIQUE SOURCE TEXT", title="src", store=store)
+
+    # the source text lives in the sources registry, not the session file
+    assert "UNIQUE SOURCE TEXT" not in session_path.read_text()
+    sources = json.loads(sources_path.read_text())
+    assert len(sources) == 1
+    sid = next(iter(sources))
+    assert SessionStore(session_path).load().rounds[-1].source_id == sid
+
+    # re-seeding the same source does not duplicate it (content-addressed)
+    _write_cards(cards_file, ["c2"])
+    CLI().seed(str(cards_file), name="t", text="UNIQUE SOURCE TEXT", title="src", store=store)
+    assert list(json.loads(sources_path.read_text())) == [sid]

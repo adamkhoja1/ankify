@@ -68,7 +68,7 @@ def evaluate_generation(
     metrics = GenMetrics()
     for item in items:
         draft = generator.generate(item.source, count_hint=count_hint)
-        reviewed = generator.self_review(draft, rounds=review_rounds)
+        reviewed = generator.self_review(draft, item.source, rounds=review_rounds)
         result = GenResult(item_id=item.id)
         for card in reviewed.cards:
             verdict = judge.judge(

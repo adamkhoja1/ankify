@@ -34,7 +34,7 @@ from .generate import Generator
 from .ingest import from_file, from_text
 from .llm import LLM
 from .models import Card, CardSet, Source
-from .server.session import ReviewSession, SessionStore
+from .server.session import ReviewSession, SessionStore, SourceStore
 from .store import Store
 
 
@@ -47,14 +47,22 @@ def _load_source(source_path: str | None, text: str | None, title: str) -> Sourc
     return None
 
 
-def _resolve(name: str, session: str | None, store: str) -> tuple[Path, Path, Path]:
-    """Return (session_path, media_dir, export_path). `--session` overrides the named store."""
+def _resolve(name: str, session: str | None, store: str) -> tuple[Path, Path, Path, Path]:
+    """Return (session_path, media_dir, export_path, sources_path).
+
+    `--session` overrides the named store, deriving sibling media/export/sources paths.
+    """
     if session:
         path = Path(session)
-        return path, path.parent / "media", path.with_suffix(".apkg")
+        return (
+            path,
+            path.parent / "media",
+            path.with_suffix(".apkg"),
+            path.with_suffix(".sources.json"),
+        )
     st = Store(store)
     st.ensure()
-    return st.session_path(name), st.media_dir, st.export_path(name)
+    return st.session_path(name), st.media_dir, st.export_path(name), st.sources_path(name)
 
 
 def _write_round(
@@ -64,6 +72,7 @@ def _write_round(
     cards: list[Card],
     media_dir: Path,
     export_path: Path,
+    sources_path: Path,
     deck: str,
     replace: bool = False,
 ) -> int:
@@ -74,6 +83,9 @@ def _write_round(
     forward and the new `cards` appended, so prior review decisions and the accepted .apkg are
     preserved. Pass `replace=True` to start the round from only `cards` (the old behavior). On a
     brand-new session there is nothing to carry, so both paths coincide.
+
+    The `source` (if given) is registered in the `SourceStore` and the round records its id;
+    when extending without a new source, the previous round's source id is carried forward.
     """
     store = SessionStore(session_path)
     if store.exists():
@@ -81,17 +93,18 @@ def _write_round(
     elif source is None:
         raise ValueError("a new session needs a source (--source_path or --text)")
     else:
-        review = ReviewSession(source=source, notes=notes)
-    if source is not None:  # only touch metadata when a new source is explicitly provided
-        review.source = source
+        review = ReviewSession(notes=notes)
     if notes:
         review.notes = notes
     if deck:
         review.deck = deck
+    if source is not None:
+        source_id = SourceStore(sources_path).add(source)
+    else:
+        source_id = review.rounds[-1].source_id if review.rounds else ""
     carried = [] if replace else review.carried_cards()
-    round_source = source or review.source
     review.rounds.append(
-        CardSet(source=round_source, cards=carried + cards, round=len(review.rounds))
+        CardSet(source_id=source_id, cards=carried + cards, round=len(review.rounds))
     )
     store.save(review)
     to_apkg(review.approved_cards(), review.deck or "Ankify", media_dir, export_path)
@@ -119,11 +132,13 @@ class CLI:
         Pass --replace to overwrite the working set with only these cards. A source
         (--source_path/--text) is required only when creating a new session.
         """
-        session_path, media_dir, export_path = _resolve(name, session, store)
+        session_path, media_dir, export_path, sources_path = _resolve(name, session, store)
         source = _load_source(source_path, text, title)
         raw = json.loads(Path(cards_file).read_text())
         cards = [Card.model_validate(c) for c in raw]
-        n = _write_round(session_path, source, notes, cards, media_dir, export_path, deck, replace)
+        n = _write_round(
+            session_path, source, notes, cards, media_dir, export_path, sources_path, deck, replace
+        )
         print(f"seeded {n} cards ({'replace' if replace else 'extend'}) -> {session_path}")
 
     def generate(
@@ -145,15 +160,16 @@ class CLI:
         Extends the session by default (carries existing cards + decisions forward); pass
         --replace to overwrite the working set with only the newly generated cards.
         """
-        session_path, media_dir, export_path = _resolve(name, session, store)
+        session_path, media_dir, export_path, sources_path = _resolve(name, session, store)
         source = _load_source(source_path, text, title)
         if source is None:
             raise ValueError("generate needs a source (--source_path or --text)")
         gen = Generator(LLM())
         draft = gen.generate(source, notes=notes, count_hint=count)
-        reviewed = gen.self_review(draft, rounds=review_rounds)
+        reviewed = gen.self_review(draft, source, rounds=review_rounds)
         n = _write_round(
-            session_path, source, notes, reviewed.cards, media_dir, export_path, deck, replace
+            session_path, source, notes, reviewed.cards, media_dir, export_path, sources_path,
+            deck, replace,
         )
         print(f"generated {n} cards -> {session_path}")
         print(gen.llm.tracker.summary())
@@ -172,8 +188,13 @@ class CLI:
 
         from .server.app import create_app
 
-        session_path, media_dir, export_path = _resolve(name, session, store)
-        app = create_app(str(session_path), media_dir=str(media_dir), export_path=str(export_path))
+        session_path, media_dir, export_path, sources_path = _resolve(name, session, store)
+        app = create_app(
+            str(session_path),
+            media_dir=str(media_dir),
+            export_path=str(export_path),
+            sources_path=str(sources_path),
+        )
         if open_browser:
             webbrowser.open(f"http://{host}:{port}")
         uvicorn.run(app, host=host, port=port)
@@ -200,7 +221,7 @@ class CLI:
         deck: str | None = None,
     ) -> None:
         """(Re)write a session's accepted cards to its .apkg."""
-        session_path, media_dir, export_path = _resolve(name, session, store)
+        session_path, media_dir, export_path, _ = _resolve(name, session, store)
         review = SessionStore(session_path).load()
         cards = review.approved_cards()
         out = to_apkg(cards, deck or review.deck or "Ankify", media_dir, export_path)
@@ -215,7 +236,7 @@ class CLI:
         sync: bool = True,
     ) -> None:
         """Import a session's accepted cards into Anki via AnkiConnect (optional path)."""
-        session_path, media_dir, _ = _resolve(name, session, store)
+        session_path, media_dir, _, _ = _resolve(name, session, store)
         review = SessionStore(session_path).load()
         cards = review.approved_cards()
         anki = AnkiConnect()

@@ -5,7 +5,7 @@ import pytest
 from ankify.eval.datasets import parse_qa
 from ankify.ingest import from_file
 from ankify.llm import BudgetExceededError, CostTracker
-from ankify.models import Card, CardSet, CardType, ReviewAction, ReviewDecision, Source
+from ankify.models import Card, CardSet, CardType, ReviewAction, ReviewDecision
 from ankify.rubric import _load_prompt
 from ankify.server.session import ReviewSession
 
@@ -47,8 +47,7 @@ def test_session_approved_cards_respects_decisions():
     b = Card(front="qb", back="2")
     c = Card(front="qc", back="3")
     session = ReviewSession(
-        source=Source(title="s"),
-        rounds=[CardSet(source=Source(title="s"), cards=[a, b, c])],
+        rounds=[CardSet(source_id="s", cards=[a, b, c])],
     )
     session.decisions[a.id] = ReviewDecision(card_id=a.id, action=ReviewAction.ACCEPT)
     edited = Card(front="qb-edited", back="2!")
@@ -69,10 +68,8 @@ def test_carried_cards_keeps_pending_and_accepted_drops_discarded():
     accepted = Card(front="a", back="2")
     edited = Card(front="e", back="3")
     discarded = Card(front="d", back="4")
-    src = Source(title="s")
     session = ReviewSession(
-        source=src,
-        rounds=[CardSet(source=src, cards=[pending, accepted, edited, discarded])],
+        rounds=[CardSet(source_id="s", cards=[pending, accepted, edited, discarded])],
     )
     session.decisions[accepted.id] = ReviewDecision(card_id=accepted.id, action=ReviewAction.ACCEPT)
     new_edit = Card(front="e-edited", back="3!")

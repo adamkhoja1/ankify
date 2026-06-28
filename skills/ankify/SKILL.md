@@ -31,13 +31,41 @@ synced anywhere by default), so each folder/project keeps its own decks:
 
 ```
 .ankify/
-  sessions/<name>.json    one review session per named deck/topic (resumable)
+  sessions/<name>.json    review state: cards + accept/edit/discard decisions (resumable)
+  sources/<name>.json     content-addressed Source registry — the source TEXT, stored once
   media/                  images referenced by cards
   exports/<name>.apkg     accepted cards, rewritten continuously as the user reviews
 ```
 
+Source text lives only in `sources/` (referenced from rounds by id), so it is never duplicated
+across rounds and is **not** embedded in the session file — the session holds just the user's
+own cards and decisions. This separation is what makes the git policy below clean.
+
 Address a session by `--name <name>` (default `default`) — pick a short name per deck/topic
 (e.g. `--name varian`). All commands below are per-`name`.
+
+### Git policy for `.ankify/` (when source may be copyrighted)
+
+The session (`sessions/`) is the user's own work and is usually safe and useful to version.
+The `sources/` text, `media/` figures, and binary `exports/` are the parts that may be
+copyrighted or heavy. **By default, write a `.ankify/.gitignore`** so those stay local while
+the session can be committed:
+
+```gitignore
+# .ankify/.gitignore
+sources/
+media/
+exports/
+```
+
+This is a judgment call you make in context — you should almost never need to ask:
+- **Default to writing it** when the source could be copyrighted (textbooks, papers, articles).
+- **Skip it** when the material clearly isn't copyrighted, or the store is clearly for private
+  use where publishing source is fine.
+- **Remove it (or narrow it)** when the user asks to commit the session/source/figures through
+  the `.ankify/` folder — then track what they want and only ignore the rest (e.g. keep just
+  `exports/` ignored, since the `.apkg` is binary and regenerable via `ankify export`).
+- When genuinely unsure, lean toward including it; ask the user only in rare ambiguous cases.
 
 The judge/generator **model** (OpenAI or Anthropic, model name, reasoning effort, API key) is
 set once via the **gear icon** in the review app (top-right), stored at

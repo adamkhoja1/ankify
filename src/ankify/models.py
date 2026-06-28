@@ -7,6 +7,7 @@ A `Card` is the unit produced, reviewed, and imported. A `CardSet` ties cards to
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from enum import Enum
 
@@ -68,16 +69,26 @@ class Card(BaseModel):
 
 
 class Source(BaseModel):
-    """The material cards are generated from, normalized to markdown."""
+    """The material cards are generated from, normalized to markdown.
+
+    Sources are stored once in a content-addressed registry (see `SourceStore`) and
+    referenced from rounds by `sid()`, so the (often large) `markdown` is never duplicated
+    across rounds or embedded in the review session itself.
+    """
 
     title: str
     kind: str = "markdown"  # markdown | highlight | arxiv | url | pdf | ...
     markdown: str = ""
     uri: str = ""
 
+    def sid(self) -> str:
+        """Stable content id used to de-duplicate sources in the store."""
+        blob = f"{self.title}\x00{self.kind}\x00{self.uri}\x00{self.markdown}"
+        return hashlib.sha256(blob.encode()).hexdigest()[:16]
+
 
 class CardSet(BaseModel):
-    source: Source
+    source_id: str = ""  # id into the SourceStore; "" if no source recorded
     cards: list[Card] = Field(default_factory=list)
     round: int = 0  # which generation round produced this set
 

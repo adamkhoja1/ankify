@@ -115,7 +115,7 @@ class Generator:
             f"{scope_text}Source ({source.kind}) titled {source.title!r}:\n\n{source.markdown}"
         )
         raw = self.llm.parse(user=user, schema=_RawCardSet, system=system, effort=self.effort)
-        return CardSet(source=source, cards=_to_cards(raw), round=0)
+        return CardSet(source_id=source.sid(), cards=_to_cards(raw), round=0)
 
     def augment(
         self,
@@ -161,12 +161,15 @@ class Generator:
         raw = self.llm.parse(user=user, schema=_RawCardSet, system=system, effort=self.effort)
         return _to_cards(raw)
 
-    def self_review(self, cardset: CardSet, notes: str = "", rounds: int = 2) -> CardSet:
+    def self_review(
+        self, cardset: CardSet, source: Source, notes: str = "", rounds: int = 2
+    ) -> CardSet:
         """Critique the whole set against the rubric and rewrite it, `rounds` times.
 
         Each round drops broken/duplicate cards, refactors T1-style cards (vague,
         non-atomic, shallow), and tightens wording — holistically, so coverage and
-        de-duplication are considered together.
+        de-duplication are considered together. `source` supplies the text to review against
+        (the cardset only carries a `source_id`).
         """
         cards = cardset.cards
         system = (
@@ -184,11 +187,11 @@ class Generator:
             )
             note_text = f"User notes / scope:\n{notes}\n\n" if notes else ""
             user = (
-                f"{note_text}Source ({cardset.source.kind}) titled "
-                f"{cardset.source.title!r}:\n\n{cardset.source.markdown}\n\n"
+                f"{note_text}Source ({source.kind}) titled "
+                f"{source.title!r}:\n\n{source.markdown}\n\n"
                 f"Draft cards:\n\n{rendered}"
             )
             raw = self.llm.parse(user=user, schema=_RawCardSet, system=system, effort=self.effort)
             cards = _to_cards(raw)
             logger.info("self-review round %d: %d cards", r, len(cards))
-        return CardSet(source=cardset.source, cards=cards, round=rounds)
+        return CardSet(source_id=source.sid(), cards=cards, round=rounds)

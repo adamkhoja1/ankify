@@ -7,7 +7,7 @@ approved/pending bookkeeping that import and regenerate depend on.
 import pytest
 from fastapi.testclient import TestClient
 
-from ankify.models import Card, CardSet, Source
+from ankify.models import Card, CardSet
 from ankify.server.app import create_app
 from ankify.server.session import ReviewSession, SessionStore
 
@@ -15,10 +15,9 @@ from ankify.server.session import ReviewSession, SessionStore
 @pytest.fixture
 def session_path(tmp_path):
     path = tmp_path / "session.json"
-    source = Source(title="s", markdown="body")
     cards = [Card(front="q1", back="a1"), Card(front="q2", back="a2")]
     SessionStore(path).save(
-        ReviewSession(source=source, rounds=[CardSet(source=source, cards=cards)])
+        ReviewSession(rounds=[CardSet(source_id="s", cards=cards)])
     )
     return path
 

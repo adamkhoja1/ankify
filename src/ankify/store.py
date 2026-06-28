@@ -1,7 +1,8 @@
 """Project-local card store under `.ankify/` (relative to the working directory).
 
 Layout:
-  .ankify/sessions/<name>.json   one ReviewSession per named deck/topic
+  .ankify/sessions/<name>.json   one ReviewSession per named deck/topic (cards + decisions)
+  .ankify/sources/<name>.json    content-addressed Source registry (source text, stored once)
   .ankify/media/                 images referenced by cards
   .ankify/exports/<name>.apkg    continuously-regenerated package of ACCEPTED cards
 
@@ -51,14 +52,21 @@ class Store:
     def exports_dir(self) -> Path:
         return self.root / "exports"
 
+    @property
+    def sources_dir(self) -> Path:
+        return self.root / "sources"
+
     def session_path(self, name: str) -> Path:
         return self.sessions_dir / f"{name}.json"
 
     def export_path(self, name: str) -> Path:
         return self.exports_dir / f"{name}.apkg"
 
+    def sources_path(self, name: str) -> Path:
+        return self.sources_dir / f"{name}.json"
+
     def ensure(self) -> None:
-        for directory in (self.sessions_dir, self.media_dir, self.exports_dir):
+        for directory in (self.sessions_dir, self.media_dir, self.exports_dir, self.sources_dir):
             directory.mkdir(parents=True, exist_ok=True)
 
     def list_sessions(self) -> list[SessionInfo]:
