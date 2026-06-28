@@ -7,7 +7,7 @@ Cards live in a project-local store under `.ankify/` (relative to the current di
                                  import into Anki — no AnkiConnect needed)
 
 Commands:
-  seed      create a review session from cards you already generated (JSON) + a source
+  seed      create or extend a review session from cards you generated (JSON); --replace resets
   generate  generate + self-review cards from a source via the API, into a session
   serve     launch the review web app over a session (opens the browser)
   sessions  list the review sessions in the store (name, accepted, pending)
@@ -38,12 +38,13 @@ from .server.session import ReviewSession, SessionStore
 from .store import Store
 
 
-def _load_source(source_path: str | None, text: str | None, title: str) -> Source:
+def _load_source(source_path: str | None, text: str | None, title: str) -> Source | None:
+    """Load the source, or None when neither is given (extend an existing session as-is)."""
     if source_path:
         return from_file(source_path)
     if text:
         return from_text(title, text)
-    raise ValueError("provide either source_path or text")
+    return None
 
 
 def _resolve(name: str, session: str | None, store: str) -> tuple[Path, Path, Path]:
@@ -58,20 +59,40 @@ def _resolve(name: str, session: str | None, store: str) -> tuple[Path, Path, Pa
 
 def _write_round(
     session_path: Path,
-    source: Source,
+    source: Source | None,
     notes: str,
     cards: list[Card],
     media_dir: Path,
     export_path: Path,
     deck: str,
+    replace: bool = False,
 ) -> int:
+    """Append a round to the session and rewrite its .apkg.
+
+    By default this EXTENDS the session: the current round's surviving cards
+    (`carried_cards()` — pending + accepted, edited as edited, discards dropped) are carried
+    forward and the new `cards` appended, so prior review decisions and the accepted .apkg are
+    preserved. Pass `replace=True` to start the round from only `cards` (the old behavior). On a
+    brand-new session there is nothing to carry, so both paths coincide.
+    """
     store = SessionStore(session_path)
-    review = store.load() if store.exists() else ReviewSession(source=source, notes=notes)
-    review.source = source
-    review.notes = notes
+    if store.exists():
+        review = store.load()
+    elif source is None:
+        raise ValueError("a new session needs a source (--source_path or --text)")
+    else:
+        review = ReviewSession(source=source, notes=notes)
+    if source is not None:  # only touch metadata when a new source is explicitly provided
+        review.source = source
+    if notes:
+        review.notes = notes
     if deck:
         review.deck = deck
-    review.rounds.append(CardSet(source=source, cards=cards, round=len(review.rounds)))
+    carried = [] if replace else review.carried_cards()
+    round_source = source or review.source
+    review.rounds.append(
+        CardSet(source=round_source, cards=carried + cards, round=len(review.rounds))
+    )
     store.save(review)
     to_apkg(review.approved_cards(), review.deck or "Ankify", media_dir, export_path)
     return len(cards)
@@ -89,14 +110,21 @@ class CLI:
         name: str = "default",
         session: str | None = None,
         store: str = ".ankify",
+        replace: bool = False,
     ) -> None:
-        """Create/extend a review session from a JSON list of cards you generated."""
+        """Create or extend a review session from a JSON list of cards you generated.
+
+        Extends by default: existing cards and their accept/edit/discard decisions are carried
+        forward and these cards appended (prior work and the accepted .apkg are preserved).
+        Pass --replace to overwrite the working set with only these cards. A source
+        (--source_path/--text) is required only when creating a new session.
+        """
         session_path, media_dir, export_path = _resolve(name, session, store)
         source = _load_source(source_path, text, title)
         raw = json.loads(Path(cards_file).read_text())
         cards = [Card.model_validate(c) for c in raw]
-        n = _write_round(session_path, source, notes, cards, media_dir, export_path, deck)
-        print(f"seeded {n} cards -> {session_path}")
+        n = _write_round(session_path, source, notes, cards, media_dir, export_path, deck, replace)
+        print(f"seeded {n} cards ({'replace' if replace else 'extend'}) -> {session_path}")
 
     def generate(
         self,
@@ -110,14 +138,23 @@ class CLI:
         name: str = "default",
         session: str | None = None,
         store: str = ".ankify",
+        replace: bool = False,
     ) -> None:
-        """Generate + self-review cards from a source via the API, into a session."""
+        """Generate + self-review cards from a source via the API, into a session.
+
+        Extends the session by default (carries existing cards + decisions forward); pass
+        --replace to overwrite the working set with only the newly generated cards.
+        """
         session_path, media_dir, export_path = _resolve(name, session, store)
         source = _load_source(source_path, text, title)
+        if source is None:
+            raise ValueError("generate needs a source (--source_path or --text)")
         gen = Generator(LLM())
         draft = gen.generate(source, notes=notes, count_hint=count)
         reviewed = gen.self_review(draft, rounds=review_rounds)
-        n = _write_round(session_path, source, notes, reviewed.cards, media_dir, export_path, deck)
+        n = _write_round(
+            session_path, source, notes, reviewed.cards, media_dir, export_path, deck, replace
+        )
         print(f"generated {n} cards -> {session_path}")
         print(gen.llm.tracker.summary())
 

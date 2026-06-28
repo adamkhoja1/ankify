@@ -79,6 +79,8 @@ refactor vague or non-atomic ones, tighten wording. Do at least two review passe
 - **Interactive (recommended):** you (Claude) generate and self-review in-context, then write
   the approved-for-review cards as a JSON array of card objects and seed the review app:
   `uv run ankification seed cards.json --source-path source.md --name <name> --notes "<scope>"`.
+  Seeding into an existing session *extends* it (carries prior cards + decisions forward, appends
+  the new ones) — see "Resuming a review"; `--source-path` is only needed when creating the session.
   Card JSON fields: `type` (`basic`|`cloze`|`reversible`), `front`, `back`, `cloze_text`
   (with `{{c1::...}}`), `extra`, `subdeck`, `tags`, `source_ref`, `rationale`. Leave unused
   fields `""`. For images, put files in `.ankify/media/` and reference them with a bare
@@ -131,6 +133,15 @@ uv run ankification serve --name <name>   # reopen the review app in the browser
 
 When the user says "let's keep working on my <topic> cards," run `ankification sessions` to
 find the set, then `serve --name <name>` to reopen the frontend for them.
+
+**Extending is non-destructive.** Re-running `seed` (or `generate`) against an existing session
+*adds* a round: the current cards and their accept/edit/discard decisions are carried forward
+and the new cards appended, so previously accepted cards and the accepted `.apkg` are preserved.
+Use this to grow a deck (e.g. add chapter 4 to a session that already covers 1–3) without
+re-reviewing earlier cards. A source (`--source-path`/`--text`) is only required when *creating*
+a new session — when extending, `seed` reuses the session's recorded source. Pass `--replace`
+only when you deliberately want to discard the carried-forward set and start the working round
+from just the new cards.
 
 ## Quality checklist (before surfacing cards)
 
