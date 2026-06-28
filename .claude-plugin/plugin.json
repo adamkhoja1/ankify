@@ -1,5 +1,9 @@
 {
   "name": "ankify",
   "description": "Generate high-quality Anki flashcards from sources via a markdown-first, rubric-driven pipeline with a human review loop.",
-  "version": "2.0.0"
+  "version": "2.0.0",
+  "author": {
+    "name": "Adam Khoja",
+    "email": "adamkhoja1@gmail.com"
+  }
 }
