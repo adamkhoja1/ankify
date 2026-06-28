@@ -108,7 +108,12 @@ refactor vague or non-atomic ones, tighten wording. Do at least two review passe
   the approved-for-review cards as a JSON array of card objects and seed the review app:
   `uv run ankify seed cards.json --source-path source.md --name <name> --notes "<scope>"`.
   Seeding into an existing session *extends* it (carries prior cards + decisions forward, appends
-  the new ones) — see "Resuming a review"; `--source-path` is only needed when creating the session.
+  the new ones) — see "Resuming a review". **Pass `--source-path` for the cards you're seeding:**
+  each seeded card is tagged with that source (stored once in `sources/`, referenced by id) so its
+  origin stays recoverable. When a deck spans multiple sources/chapters, **seed (or generate) once
+  per source** — a single seed can only tag its cards with one source, so batching several
+  chapters into one seed leaves them unattributed. (`--source-path` is otherwise optional when
+  extending an existing session.)
   Card JSON fields: `type` (`basic`|`cloze`|`reversible`), `front`, `back`, `cloze_text`
   (with `{{c1::...}}`), `extra`, `subdeck`, `tags`, `source_ref`, `rationale`. Leave unused
   fields `""`. For images, put files in `.ankify/media/` and reference them with a bare
