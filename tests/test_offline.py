@@ -47,7 +47,7 @@ def test_session_approved_cards_respects_decisions():
     b = Card(front="qb", back="2")
     c = Card(front="qc", back="3")
     session = ReviewSession(
-        rounds=[CardSet(source_id="s", cards=[a, b, c])],
+        rounds=[CardSet(cards=[a, b, c])],
     )
     session.decisions[a.id] = ReviewDecision(card_id=a.id, action=ReviewAction.ACCEPT)
     edited = Card(front="qb-edited", back="2!")
@@ -69,7 +69,7 @@ def test_carried_cards_keeps_pending_and_accepted_drops_discarded():
     edited = Card(front="e", back="3")
     discarded = Card(front="d", back="4")
     session = ReviewSession(
-        rounds=[CardSet(source_id="s", cards=[pending, accepted, edited, discarded])],
+        rounds=[CardSet(cards=[pending, accepted, edited, discarded])],
     )
     session.decisions[accepted.id] = ReviewDecision(card_id=accepted.id, action=ReviewAction.ACCEPT)
     new_edit = Card(front="e-edited", back="3!")

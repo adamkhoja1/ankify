@@ -39,6 +39,7 @@ class Card(BaseModel):
     tags: list[str] = Field(default_factory=list)
     subdeck: str = ""  # sub-deck relative to the session deck, e.g. "Ch01 - The Market"
     source_ref: str = ""  # short anchoring quote/locator from the source
+    source_id: str = ""  # id into the SourceStore for the source this card came from
     rationale: str = ""  # why this card exists; not imported into Anki
 
     @model_validator(mode="after")
@@ -88,7 +89,9 @@ class Source(BaseModel):
 
 
 class CardSet(BaseModel):
-    source_id: str = ""  # id into the SourceStore; "" if no source recorded
+    """A generation round's cards. Source attribution lives per-card (`Card.source_id`), so a
+    round may mix cards from several sources (e.g. carried-forward + a new chapter)."""
+
     cards: list[Card] = Field(default_factory=list)
     round: int = 0  # which generation round produced this set
 

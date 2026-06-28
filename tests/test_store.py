@@ -18,7 +18,7 @@ def test_store_lists_sessions_with_counts(tmp_path):
     store = Store(tmp_path / ".ankify")
     store.ensure()
     cards = [Card(front=f"q{i}", back=str(i)) for i in range(3)]
-    session = ReviewSession(rounds=[CardSet(source_id="s", cards=cards)])
+    session = ReviewSession(rounds=[CardSet(cards=cards)])
     session.decisions[cards[0].id] = ReviewDecision(
         card_id=cards[0].id, action=ReviewAction.ACCEPT
     )

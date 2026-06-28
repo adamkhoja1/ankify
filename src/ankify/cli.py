@@ -84,8 +84,9 @@ def _write_round(
     preserved. Pass `replace=True` to start the round from only `cards` (the old behavior). On a
     brand-new session there is nothing to carry, so both paths coincide.
 
-    The `source` (if given) is registered in the `SourceStore` and the round records its id;
-    when extending without a new source, the previous round's source id is carried forward.
+    The `source` (if given) is registered in the `SourceStore` and each newly seeded card is
+    tagged with its id (cards that already name a source keep it); carried-forward cards keep
+    their own source ids, so a round may mix cards from several sources.
     """
     store = SessionStore(session_path)
     if store.exists():
@@ -100,12 +101,12 @@ def _write_round(
         review.deck = deck
     if source is not None:
         source_id = SourceStore(sources_path).add(source)
-    else:
-        source_id = review.rounds[-1].source_id if review.rounds else ""
+        # tag the newly seeded cards with this source, unless they already name their own
+        cards = [
+            c if c.source_id else c.model_copy(update={"source_id": source_id}) for c in cards
+        ]
     carried = [] if replace else review.carried_cards()
-    review.rounds.append(
-        CardSet(source_id=source_id, cards=carried + cards, round=len(review.rounds))
-    )
+    review.rounds.append(CardSet(cards=carried + cards, round=len(review.rounds)))
     store.save(review)
     to_apkg(review.approved_cards(), review.deck or "Ankify", media_dir, export_path)
     return len(cards)

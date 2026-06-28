@@ -115,7 +115,11 @@ class Generator:
             f"{scope_text}Source ({source.kind}) titled {source.title!r}:\n\n{source.markdown}"
         )
         raw = self.llm.parse(user=user, schema=_RawCardSet, system=system, effort=self.effort)
-        return CardSet(source_id=source.sid(), cards=_to_cards(raw), round=0)
+        cards = _to_cards(raw)
+        sid = source.sid()
+        for card in cards:
+            card.source_id = sid
+        return CardSet(cards=cards, round=0)
 
     def augment(
         self,
@@ -169,7 +173,7 @@ class Generator:
         Each round drops broken/duplicate cards, refactors T1-style cards (vague,
         non-atomic, shallow), and tightens wording — holistically, so coverage and
         de-duplication are considered together. `source` supplies the text to review against
-        (the cardset only carries a `source_id`).
+        (cards carry only a `source_id`), and reviewed cards are re-tagged with it.
         """
         cards = cardset.cards
         system = (
@@ -194,4 +198,7 @@ class Generator:
             raw = self.llm.parse(user=user, schema=_RawCardSet, system=system, effort=self.effort)
             cards = _to_cards(raw)
             logger.info("self-review round %d: %d cards", r, len(cards))
-        return CardSet(source_id=source.sid(), cards=cards, round=rounds)
+        sid = source.sid()
+        for card in cards:
+            card.source_id = sid
+        return CardSet(cards=cards, round=rounds)

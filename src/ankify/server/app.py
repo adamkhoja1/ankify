@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections import Counter
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
@@ -77,21 +78,21 @@ def _regenerate(session: ReviewSession, source_store: SourceStore) -> CardSet:
     discards, and append requested new cards plus revisions of cards discarded with
     feedback. Pending cards are preserved so a regenerate never loses unreviewed cards."""
     carried = session.carried_cards()
-    source_id = session.rounds[-1].source_id if session.rounds else ""
+    # augment from the source most of the carried cards came from
+    ids = [c.source_id for c in carried if c.source_id]
+    source_id = Counter(ids).most_common(1)[0][0] if ids else ""
     source = source_store.get(source_id)
     if source is None:
-        raise HTTPException(400, "no source recorded for this session; cannot regenerate")
+        raise HTTPException(400, "no source recorded for these cards; cannot regenerate")
     new_cards = Generator(LLM()).augment(
         source,
         requests=session.requests,
         revisions=session.revisions(),
         avoid=carried + session.discarded_cards(),
     )
-    new_round = CardSet(
-        source_id=source_id,
-        cards=carried + new_cards,
-        round=len(session.rounds),
-    )
+    for card in new_cards:
+        card.source_id = source_id
+    new_round = CardSet(cards=carried + new_cards, round=len(session.rounds))
     session.rounds.append(new_round)
     session.requests = []
     return new_round

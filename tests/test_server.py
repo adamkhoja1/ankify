@@ -17,7 +17,7 @@ def session_path(tmp_path):
     path = tmp_path / "session.json"
     cards = [Card(front="q1", back="a1"), Card(front="q2", back="a2")]
     SessionStore(path).save(
-        ReviewSession(rounds=[CardSet(source_id="s", cards=cards)])
+        ReviewSession(rounds=[CardSet(cards=cards)])
     )
     return path
 
