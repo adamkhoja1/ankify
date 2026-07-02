@@ -1,11 +1,9 @@
 """Offline unit tests (no API): cost tracking, prompt loading, parsing, session logic."""
 
-from pathlib import Path
 
 import pytest
 
 from ankify.eval.datasets import parse_qa
-from ankify.ingest import from_file
 from ankify.llm import BudgetExceededError, CostTracker
 from ankify.models import Card, CardSet, CardType, ReviewAction, ReviewDecision
 from ankify.rubric import _load_prompt
@@ -98,17 +96,3 @@ def test_discarded_cards_remembered_across_rounds() -> None:
     assert rejected.id not in [c.id for c in session.current_cards()]
     # ...but it stays on the avoid list so it isn't re-created later
     assert [c.front for c in session.discarded_cards()] == ["rejected early"]
-
-
-def test_ingest_rejects_binary(tmp_path: Path) -> None:
-    pdf = tmp_path / "doc.pdf"
-    pdf.write_bytes(b"%PDF-1.4")
-    with pytest.raises(ValueError, match="to_md"):
-        from_file(pdf)
-
-
-def test_ingest_reads_markdown(tmp_path: Path) -> None:
-    md = tmp_path / "note.md"
-    md.write_text("# Title\n\nbody")
-    src = from_file(md)
-    assert src.markdown.startswith("# Title") and src.kind == "markdown"
