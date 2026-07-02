@@ -249,8 +249,20 @@ class CLI:
             f"{result.failed} failed) -> {deck}"
         )
 
-    def eval(self, limit: int = 10, budget: float = 15.0) -> None:
-        """Run the verification loop on the validation set (writes eval_runs/<ts>.md)."""
+    def eval(
+        self,
+        limit: int = 10,
+        budget: float = 15.0,
+        split: str = "test",
+        review_rounds: int = 1,
+        calib_candidates: int = 20,
+        ceiling_cards: int = 12,
+    ) -> None:
+        """Run the verification loop on the validation set (writes eval_runs/<ts>.md).
+
+        If the budget runs out mid-run, the report is still written from the partial
+        results (and says so).
+        """
         from .eval.datasets import load_memory_machines
         from .eval.harness import (
             calibrate_judge,
@@ -264,10 +276,18 @@ class CLI:
         tracker = CostTracker(budget_usd=budget)
         llm = LLM(tracker=tracker)
         gen, judge = Generator(llm), Judge(llm)
-        items = load_memory_machines(limit=limit)
-        _, metrics = evaluate_generation(items, gen, judge)
-        calib = calibrate_judge(items, judge)
-        ceiling = reference_ceiling(items, judge)
+        items = load_memory_machines(split=split, limit=limit)
+        _, metrics = evaluate_generation(items, gen, judge, review_rounds=review_rounds)
+        calib = (
+            calibrate_judge(items, judge, max_candidates=calib_candidates)
+            if not tracker.exhausted
+            else None
+        )
+        ceiling = (
+            reference_ceiling(items, judge, max_cards=ceiling_cards)
+            if not tracker.exhausted
+            else None
+        )
         report = render_report(
             dataset="Memory Machines (srs-prompts)",
             gen=metrics,
@@ -275,6 +295,9 @@ class CLI:
             ceiling=ceiling,
             tracker=tracker,
             timestamp=datetime.now().strftime("%Y-%m-%d %H:%M"),
+            note="Stopped early: budget exhausted; metrics are partial."
+            if tracker.exhausted
+            else "",
         )
         out = Path("eval_runs") / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}.md"
         out.parent.mkdir(exist_ok=True)

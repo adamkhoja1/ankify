@@ -72,6 +72,10 @@ class CostTracker:
             )
         return cost
 
+    @property
+    def exhausted(self) -> bool:
+        return self.budget_usd is not None and self.spent_usd > self.budget_usd
+
     def summary(self) -> str:
         return (
             f"~${self.spent_usd:.3f} | {self.n_calls} calls | "

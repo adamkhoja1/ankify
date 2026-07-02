@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass, field
 
 from ..generate import Generator
-from ..llm import CostTracker
+from ..llm import BudgetExceededError, CostTracker
 from ..models import Card, Verdict
 from ..rubric import Judge
 from .datasets import ValItem
@@ -64,32 +64,40 @@ def evaluate_generation(
     count_hint: int = 2,
     review_rounds: int = 1,
 ) -> tuple[list[GenResult], GenMetrics]:
+    """Generate + judge cards for each item. On budget exhaustion, returns the partial
+    results accumulated so far instead of discarding the run."""
     results: list[GenResult] = []
     metrics = GenMetrics()
     for item in items:
-        draft = generator.generate(item.source, count_hint=count_hint)
-        reviewed = generator.self_review(draft, item.source, rounds=review_rounds)
         result = GenResult(item_id=item.id)
-        for card in reviewed.cards:
-            verdict = judge.judge(
-                card,
-                source_description=item.source.markdown,
-                reference_cards=item.reference_cards or None,
-            )
-            result.judged.append((card, verdict))
-            metrics.n_cards += 1
-            metrics.tier_counts[verdict.tier.value] = (
-                metrics.tier_counts.get(verdict.tier.value, 0) + 1
-            )
-            if verdict.usable:
-                metrics.usable += 1
-            if verdict.clean:
-                metrics.clean += 1
-            for probe in verdict.failed_probes:
-                metrics.probe_fail[probe.value] = metrics.probe_fail.get(probe.value, 0) + 1
+        try:
+            draft = generator.generate(item.source, count_hint=count_hint)
+            reviewed = generator.self_review(draft, item.source, rounds=review_rounds)
+            for card in reviewed.cards:
+                verdict = judge.judge(
+                    card,
+                    source_description=item.source.markdown,
+                    reference_cards=item.reference_cards or None,
+                )
+                result.judged.append((card, verdict))
+                metrics.n_cards += 1
+                metrics.tier_counts[verdict.tier.value] = (
+                    metrics.tier_counts.get(verdict.tier.value, 0) + 1
+                )
+                if verdict.usable:
+                    metrics.usable += 1
+                if verdict.clean:
+                    metrics.clean += 1
+                for probe in verdict.failed_probes:
+                    metrics.probe_fail[probe.value] = metrics.probe_fail.get(probe.value, 0) + 1
+        except BudgetExceededError as exc:
+            logger.warning("stopping generation eval at %s (budget exhausted): %s", item.id, exc)
+            if result.judged:
+                results.append(result)
+            break
         results.append(result)
         metrics.n_items += 1
-        logger.info("generation eval %s: %d cards", item.id, len(reviewed.cards))
+        logger.info("generation eval %s: %d cards", item.id, len(result.judged))
     return results, metrics
 
 
@@ -104,8 +112,12 @@ def calibrate_judge(items: list[ValItem], judge: Judge, max_candidates: int = 20
             if calib.n >= max_candidates:
                 return calib
             refs = [c for c in item.reference_cards if c is not cand.card] or None
-            verdict = judge.judge(cand.card, source_description=item.source.markdown,
-                                  reference_cards=refs)
+            try:
+                verdict = judge.judge(cand.card, source_description=item.source.markdown,
+                                      reference_cards=refs)
+            except BudgetExceededError as exc:
+                logger.warning("stopping judge calibration early (budget exhausted): %s", exc)
+                return calib
             calib.n += 1
             if verdict.tier == cand.human_tier:
                 calib.exact += 1
@@ -124,8 +136,12 @@ def reference_ceiling(items: list[ValItem], judge: Judge, max_cards: int = 12) -
             if metrics.n_cards >= max_cards:
                 return metrics
             others = [c for c in item.reference_cards if c is not card] or None
-            verdict = judge.judge(card, source_description=item.source.markdown,
-                                  reference_cards=others)
+            try:
+                verdict = judge.judge(card, source_description=item.source.markdown,
+                                      reference_cards=others)
+            except BudgetExceededError as exc:
+                logger.warning("stopping reference ceiling early (budget exhausted): %s", exc)
+                return metrics
             metrics.n_cards += 1
             metrics.tier_counts[verdict.tier.value] = (
                 metrics.tier_counts.get(verdict.tier.value, 0) + 1
@@ -145,10 +161,15 @@ def render_report(
     ceiling: GenMetrics | None,
     tracker: CostTracker,
     timestamp: str,
+    note: str = "",
 ) -> str:
     lines = [
         f"# Eval report — {dataset}",
         f"_{timestamp}_",
+    ]
+    if note:
+        lines.append(f"\n**{note}**")
+    lines += [
         "",
         "## Generation quality (our cards, grounded-judged vs references)",
         f"- items: {gen.n_items}, cards: {gen.n_cards}",
