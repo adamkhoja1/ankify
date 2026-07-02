@@ -5,12 +5,13 @@ import json
 import threading
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from typing import Any, ClassVar
 
 import pytest
 
 from ankify.anki import AnkiConnect, AnkiConnectError
-from ankify.models import Card, CardType
+from ankify.models import Card, CardSet, CardType
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -88,3 +89,22 @@ def test_reversible_card_imports_as_two_notes(anki_server: str) -> None:
 def test_unreachable_anki_raises_with_guidance() -> None:
     with pytest.raises(AnkiConnectError, match="Is Anki open"):
         AnkiConnect("http://127.0.0.1:1", timeout=0.2).deck_names()
+
+
+def test_push_defaults_to_session_deck(anki_server: str, tmp_path: Path) -> None:
+    from ankify.cli import CLI, _resolve
+    from ankify.models import ReviewAction, ReviewDecision
+    from ankify.server.session import ReviewSession, SessionStore
+
+    store = str(tmp_path / ".ankify")
+    session_path, _, _, _ = _resolve("t", None, store)
+    card = Card(front="q", back="a")
+    session = ReviewSession(deck="Varian", rounds=[CardSet(cards=[card])])
+    session.decisions[card.id] = ReviewDecision(card_id=card.id, action=ReviewAction.ACCEPT)
+    SessionStore(session_path).save(session)
+    _Handler.canned = {"createDeck": 1, "addNotes": [1], "sync": None}
+
+    CLI().push(name="t", store=store, anki_url=anki_server)
+
+    create = next(r for r in _Handler.requests if r["action"] == "createDeck")
+    assert create["params"]["deck"] == "Varian"  # session deck, not a hardcoded default

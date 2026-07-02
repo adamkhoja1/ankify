@@ -234,20 +234,25 @@ class CLI:
         name: str = "default",
         session: str | None = None,
         store: str = ".ankify",
-        deck: str = "Default",
+        deck: str | None = None,
         sync: bool = True,
+        anki_url: str | None = None,
     ) -> None:
-        """Import a session's accepted cards into Anki via AnkiConnect (optional path)."""
+        """Import a session's accepted cards into Anki via AnkiConnect (optional path).
+
+        `--deck` defaults to the session's recorded deck (then "Ankify"), matching export.
+        """
         session_path, media_dir, _, _ = _resolve(name, session, store)
         review = SessionStore(session_path).load()
         cards = review.approved_cards()
-        anki = AnkiConnect()
-        result = anki.import_cards(cards, deck, media_dir=media_dir)
+        target = deck or review.deck or "Ankify"
+        anki = AnkiConnect(anki_url) if anki_url else AnkiConnect()
+        result = anki.import_cards(cards, target, media_dir=media_dir)
         if sync:
             anki.sync()
         print(
             f"imported {result.added} (+{result.duplicates} dup, "
-            f"{result.failed} failed) -> {deck}"
+            f"{result.failed} failed) -> {target}"
         )
 
     def eval(
