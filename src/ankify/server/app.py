@@ -32,7 +32,17 @@ from .session import ReviewSession, SessionStore, SourceStore
 
 logger = logging.getLogger(__name__)
 
-_FRONTEND_DIST = Path(__file__).resolve().parents[3] / "frontend" / "dist"
+
+def _frontend_dist() -> Path:
+    """The built review UI: bundled into the package for wheel installs (see
+    pyproject force-include), `frontend/dist` in a repo/editable checkout."""
+    packaged = Path(__file__).resolve().parents[1] / "_frontend"
+    if packaged.exists():
+        return packaged
+    return Path(__file__).resolve().parents[3] / "frontend" / "dist"
+
+
+_FRONTEND_DIST = _frontend_dist()
 
 
 class DecisionIn(BaseModel):

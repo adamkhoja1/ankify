@@ -38,6 +38,10 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/ankify"]
 
+[tool.hatch.build.targets.wheel.force-include]
+# ship the built review UI inside the package so `ankify serve` works when installed
+"frontend/dist" = "ankify/_frontend"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
