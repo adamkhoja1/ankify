@@ -32,7 +32,7 @@ def main() -> None:
     print(f"=== generated {len(draft.cards)} cards ===")
     for c in draft.cards:
         print(f"  [{c.type.value}] {c.as_qa()}")
-    reviewed = gen.self_review(draft, rounds=1)
+    reviewed = gen.self_review(draft, SOURCE, rounds=1)
     print(f"\n=== after 1 self-review round: {len(reviewed.cards)} cards ===")
     for c in reviewed.cards:
         print(f"  [{c.type.value}] {c.as_qa()}")
