@@ -1,4 +1,5 @@
 import { type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from "react";
+import DOMPurify from "dompurify";
 import { MathJax } from "better-react-mathjax";
 import {
   answerSide,
@@ -399,12 +400,16 @@ export default function App() {
   );
 }
 
-// Renders Anki HTML (images, bold, etc.) and typesets LaTeX via MathJax. Content is
-// self-generated or locally edited, so dangerouslySetInnerHTML is acceptable for this tool.
+// Renders Anki HTML (images, bold, etc.) and typesets LaTeX via MathJax. Cards are LLM
+// output grounded in arbitrary source documents, so the HTML is sanitized before injection
+// — a prompt-injected source must not be able to run script in the review app.
 function CardContent({ html }: { html: string }) {
   return (
     <MathJax dynamic>
-      <div className="content" dangerouslySetInnerHTML={{ __html: html }} />
+      <div
+        className="content"
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
+      />
     </MathJax>
   );
 }
