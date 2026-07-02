@@ -77,12 +77,19 @@ class ReviewSession(BaseModel):
         return [d.feedback for d in self.decisions.values() if d.feedback]
 
     def discarded_cards(self) -> list[Card]:
-        out: list[Card] = []
-        for card in self.current_cards():
-            d = self.decisions.get(card.id)
-            if d is not None and d.action is ReviewAction.DISCARD:
-                out.append(card)
-        return out
+        """Every card ever discarded, across all rounds (latest version per id).
+
+        Discards are dropped from subsequent rounds, so scanning only the current round
+        would let a regenerate re-create a card the user rejected earlier; this is the
+        `avoid` list for regeneration.
+        """
+        by_id: dict[str, Card] = {}
+        for cardset in self.rounds:
+            for card in cardset.cards:
+                d = self.decisions.get(card.id)
+                if d is not None and d.action is ReviewAction.DISCARD:
+                    by_id[card.id] = card
+        return list(by_id.values())
 
 
 class SessionStore:

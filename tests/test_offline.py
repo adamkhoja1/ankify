@@ -86,6 +86,20 @@ def test_carried_cards_keeps_pending_and_accepted_drops_discarded() -> None:
     assert carried == ["p", "a", "e-edited"]
 
 
+def test_discarded_cards_remembered_across_rounds() -> None:
+    rejected = Card(front="rejected early", back="x")
+    kept = Card(front="kept", back="y")
+    session = ReviewSession(rounds=[CardSet(cards=[rejected, kept], round=0)])
+    session.decisions[rejected.id] = ReviewDecision(
+        card_id=rejected.id, action=ReviewAction.DISCARD
+    )
+    # a regenerate drops the discard from the next round's working set...
+    session.rounds.append(CardSet(cards=session.carried_cards(), round=1))
+    assert rejected.id not in [c.id for c in session.current_cards()]
+    # ...but it stays on the avoid list so it isn't re-created later
+    assert [c.front for c in session.discarded_cards()] == ["rejected early"]
+
+
 def test_ingest_rejects_binary(tmp_path: Path) -> None:
     pdf = tmp_path / "doc.pdf"
     pdf.write_bytes(b"%PDF-1.4")
