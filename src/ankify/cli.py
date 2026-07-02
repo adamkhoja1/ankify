@@ -167,7 +167,7 @@ class CLI:
             raise ValueError("generate needs a source (--source_path or --text)")
         gen = Generator(LLM())
         draft = gen.generate(source, notes=notes, count_hint=count)
-        reviewed = gen.self_review(draft, source, rounds=review_rounds)
+        reviewed = gen.self_review(draft, source, notes=notes, rounds=review_rounds)
         n = _write_round(
             session_path, source, notes, reviewed.cards, media_dir, export_path, sources_path,
             deck, replace,
