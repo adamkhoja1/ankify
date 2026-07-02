@@ -29,7 +29,7 @@ def main() -> None:
     session = store.load()
     counts: dict[str, int] = {}
     unknown: list[tuple[str, str]] = []
-    for card in session.current.cards:
+    for card in session.current_cards():
         chapter = chapter_of(card.source_ref)
         subdeck = CHAPTERS.get(chapter) if chapter else None
         if subdeck:
@@ -42,7 +42,7 @@ def main() -> None:
 
     for name in sorted(counts):
         print(f"{counts[name]:3}  {name}")
-    print(f"total classified: {sum(counts.values())}/{len(session.current.cards)}")
+    print(f"total classified: {sum(counts.values())}/{len(session.current_cards())}")
     print(f"accepted cards exported: {len(session.approved_cards())} -> {EXPORT}")
     for cid, ref in unknown:
         print(f"  UNCLASSIFIED {cid}: {ref!r}")

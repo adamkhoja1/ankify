@@ -4,6 +4,8 @@ Covers the no-LLM, no-Anki paths: reading a session, recording decisions, subdec
 approved/pending bookkeeping that import and regenerate depend on.
 """
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -13,7 +15,7 @@ from ankify.server.session import ReviewSession, SessionStore
 
 
 @pytest.fixture
-def session_path(tmp_path):
+def session_path(tmp_path: Path) -> Path:
     path = tmp_path / "session.json"
     cards = [Card(front="q1", back="a1"), Card(front="q2", back="a2")]
     SessionStore(path).save(
@@ -23,7 +25,7 @@ def session_path(tmp_path):
 
 
 @pytest.fixture
-def client(session_path):
+def client(session_path: Path) -> TestClient:
     # tmp media/export so tests never write into the repo's .ankify/
     return TestClient(
         create_app(
@@ -34,14 +36,14 @@ def client(session_path):
     )
 
 
-def test_missing_session_is_404(tmp_path):
+def test_missing_session_is_404(tmp_path: Path) -> None:
     app = create_app(
         tmp_path / "nope.json", media_dir=tmp_path / "m", export_path=tmp_path / "x.apkg"
     )
     assert TestClient(app).get("/api/session").status_code == 404
 
 
-def test_session_decision_and_approved_flow(client, session_path):
+def test_session_decision_and_approved_flow(client: TestClient, session_path: Path) -> None:
     state = client.get("/api/session").json()
     assert len(state["cards"]) == 2 and state["pending"] == 2
     c1, c2 = state["cards"]
@@ -62,7 +64,9 @@ def test_session_decision_and_approved_flow(client, session_path):
     assert reloaded.feedback() == ["off-topic"]
 
 
-def test_saved_edit_updates_card_in_place_and_records_accept(client, session_path):
+def test_saved_edit_updates_card_in_place_and_records_accept(
+    client: TestClient, session_path: Path
+) -> None:
     c1 = client.get("/api/session").json()["cards"][0]
     edited = {**c1, "id": "DIFFERENT", "front": "q1-edited", "back": "a1!"}
     client.post(
@@ -77,25 +81,25 @@ def test_saved_edit_updates_card_in_place_and_records_accept(client, session_pat
     assert [c.front for c in approved][:1] == ["q1-edited"]
 
 
-def test_requests_queue_persists_and_strips_blanks(client, session_path):
+def test_requests_queue_persists_and_strips_blanks(client: TestClient, session_path: Path) -> None:
     r = client.post("/api/requests", json={"requests": ["card on X", "   ", "card on Y"]})
     assert r.json() == {"requests": ["card on X", "card on Y"]}
     assert client.get("/api/session").json()["requests"] == ["card on X", "card on Y"]
     assert SessionStore(session_path).load().requests == ["card on X", "card on Y"]
 
 
-def test_regenerate_with_nothing_queued_is_400(client):
+def test_regenerate_with_nothing_queued_is_400(client: TestClient) -> None:
     assert client.post("/api/regenerate").status_code == 400
 
 
-def test_import_with_no_approved_cards_is_400(client):
+def test_import_with_no_approved_cards_is_400(client: TestClient) -> None:
     state = client.get("/api/session").json()
     for card in state["cards"]:
         client.post("/api/decision", json={"card_id": card["id"], "action": "discard"})
     assert client.post("/api/import", json={"deck": "D"}).status_code == 400
 
 
-def test_set_subdeck_does_not_decide(client):
+def test_set_subdeck_does_not_decide(client: TestClient) -> None:
     c1 = client.get("/api/session").json()["cards"][0]
     r = client.post("/api/subdeck", json={"card_id": c1["id"], "subdeck": "Ch01"})
     assert any(s["name"] == "Ch01" for s in r.json()["subdecks"])
@@ -105,7 +109,7 @@ def test_set_subdeck_does_not_decide(client):
     assert c1["id"] not in state["decisions"]  # still pending — setting a subdeck is not a decision
 
 
-def test_rename_subdeck_across_round(client):
+def test_rename_subdeck_across_round(client: TestClient) -> None:
     cards = client.get("/api/session").json()["cards"]
     for card in cards:
         client.post("/api/subdeck", json={"card_id": card["id"], "subdeck": "Old"})

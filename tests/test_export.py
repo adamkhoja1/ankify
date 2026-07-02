@@ -17,7 +17,7 @@ def _cards() -> list[Card]:
     ]
 
 
-def _inspect(apkg: Path) -> tuple[list[str], list[str], dict]:
+def _inspect(apkg: Path) -> tuple[list[str], list[str], dict[str, str]]:
     """Return (zip names, note guids, media map) from a .apkg."""
     work = apkg.parent / f"{apkg.stem}_db.anki2"
     with zipfile.ZipFile(apkg) as zf:
@@ -31,7 +31,7 @@ def _inspect(apkg: Path) -> tuple[list[str], list[str], dict]:
     return names, guids, media
 
 
-def test_apkg_has_notes_and_bundles_media(tmp_path):
+def test_apkg_has_notes_and_bundles_media(tmp_path: Path) -> None:
     media_dir = tmp_path / "media"
     media_dir.mkdir()
     (media_dir / "fig.svg").write_text("<svg xmlns='http://www.w3.org/2000/svg'/>")
@@ -46,7 +46,7 @@ def test_apkg_has_notes_and_bundles_media(tmp_path):
     assert "fig.svg" in media.values()  # referenced image bundled
 
 
-def test_apkg_guids_stable_across_runs(tmp_path):
+def test_apkg_guids_stable_across_runs(tmp_path: Path) -> None:
     media_dir = tmp_path / "media"
     media_dir.mkdir()
     cards = _cards()  # same card ids both runs
@@ -60,7 +60,7 @@ def test_apkg_guids_stable_across_runs(tmp_path):
     assert guids_a == guids_b and len(guids_a) == 3  # idempotent: re-import updates, no dupes
 
 
-def test_export_creates_parent_dir(tmp_path):
+def test_export_creates_parent_dir(tmp_path: Path) -> None:
     out = tmp_path / "nested" / "exports" / "deck.apkg"
     to_apkg([Card(front="q", back="a")], "D", tmp_path / "media", out)
     assert out.exists()
@@ -77,7 +77,7 @@ def _deck_names(apkg: Path) -> set[str]:
     return {d["name"] for d in decks.values()}
 
 
-def test_apkg_groups_cards_into_subdecks(tmp_path):
+def test_apkg_groups_cards_into_subdecks(tmp_path: Path) -> None:
     cards = [
         Card(front="q1", back="a1", subdeck="Ch01 - The Market"),
         Card(front="q2", back="a2", subdeck="Ch02 - Budget"),

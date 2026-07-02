@@ -79,7 +79,9 @@ def render(results: list[tuple[str, Card, Verdict]], tracker: CostTracker) -> st
             probe_fail[p.value] = probe_fail.get(p.value, 0) + 1
     high = [r for r in results if r[2].usable]
     low = [r for r in results if not r[2].usable]
-    cards_html = lambda rs: "".join(_card_html(ch, c, v) for ch, c, v in rs)  # noqa: E731
+    def cards_html(rs: list[tuple[str, Card, Verdict]]) -> str:
+        return "".join(_card_html(ch, c, v) for ch, c, v in rs)
+
     return f"""<!doctype html><html><head><meta charset="utf-8"><title>Varian cards — rubric report</title>
 <style>
  body{{font:15px/1.55 ui-sans-serif,system-ui,sans-serif;background:#f3f1ec;color:#21201c;margin:0;padding:2rem 1rem 4rem}}

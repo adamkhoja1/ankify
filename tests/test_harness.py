@@ -3,6 +3,8 @@
 Uses stub Generator/Judge subclasses (no LLM); the real-API path lives in `ankify eval`.
 """
 
+from collections.abc import Sequence
+
 from ankify.eval.datasets import ValItem
 from ankify.eval.harness import evaluate_generation, render_report
 from ankify.generate import Generator
@@ -41,7 +43,7 @@ class _StubJudge(Judge):
         self,
         card: Card,
         source_description: str = "",
-        reference_cards: list[Card] | None = None,
+        reference_cards: Sequence[Card] | None = None,
         run_probes: bool = True,
     ) -> Verdict:
         self.calls += 1

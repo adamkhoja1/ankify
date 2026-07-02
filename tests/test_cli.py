@@ -21,7 +21,7 @@ def _note_count(apkg: Path) -> int:
     with zipfile.ZipFile(apkg) as zf:
         work.write_bytes(zf.read("collection.anki2"))
     con = sqlite3.connect(work)
-    n = con.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
+    n = int(con.execute("SELECT COUNT(*) FROM notes").fetchone()[0])
     con.close()
     work.unlink()
     return n
@@ -44,7 +44,7 @@ def _write_cards(path: Path, fronts: list[str]) -> None:
     path.write_text(json.dumps([{"type": "basic", "front": f, "back": f"{f}!"} for f in fronts]))
 
 
-def test_seed_extends_without_clobbering_accepted(tmp_path):
+def test_seed_extends_without_clobbering_accepted(tmp_path: Path) -> None:
     store = str(tmp_path / ".ankify")
     session_path, _, export_path, _ = _resolve("t", None, store)
     acc_id, _ = _seed_initial_session(session_path)
@@ -64,7 +64,7 @@ def test_seed_extends_without_clobbering_accepted(tmp_path):
     assert _note_count(export_path) == 1  # .apkg NOT rewritten to empty
 
 
-def test_seed_replace_resets_working_set(tmp_path):
+def test_seed_replace_resets_working_set(tmp_path: Path) -> None:
     store = str(tmp_path / ".ankify")
     session_path, _, export_path, _ = _resolve("t", None, store)
     _seed_initial_session(session_path)
@@ -80,7 +80,7 @@ def test_seed_replace_resets_working_set(tmp_path):
     assert _note_count(export_path) == 0
 
 
-def test_seed_extend_keeps_card_source_ids_and_deck(tmp_path):
+def test_seed_extend_keeps_card_source_ids_and_deck(tmp_path: Path) -> None:
     store = str(tmp_path / ".ankify")
     session_path, _, _, _ = _resolve("t", None, store)
     _seed_initial_session(session_path)
@@ -99,7 +99,7 @@ def test_seed_extend_keeps_card_source_ids_and_deck(tmp_path):
     assert by_front["new1"].source_id == ""
 
 
-def test_seed_new_session_requires_source(tmp_path):
+def test_seed_new_session_requires_source(tmp_path: Path) -> None:
     store = str(tmp_path / ".ankify")
     cards_file = tmp_path / "new.json"
     _write_cards(cards_file, ["c1"])
@@ -107,7 +107,7 @@ def test_seed_new_session_requires_source(tmp_path):
         CLI().seed(str(cards_file), name="fresh", store=store)
 
 
-def test_seed_stores_source_outside_session_and_dedupes(tmp_path):
+def test_seed_stores_source_outside_session_and_dedupes(tmp_path: Path) -> None:
     store = str(tmp_path / ".ankify")
     session_path, _, _, sources_path = _resolve("t", None, store)
     cards_file = tmp_path / "c.json"

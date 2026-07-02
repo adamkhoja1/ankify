@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 from pydantic import ValidationError
 
@@ -7,13 +9,12 @@ from ankify.models import (
     CardType,
     ProbeName,
     ProbeResult,
-    Source,
     Tier,
     Verdict,
 )
 
 
-def test_basic_card_roundtrips():
+def test_basic_card_roundtrips() -> None:
     c = Card(type=CardType.BASIC, front="What is X?", back="Y")
     assert c.prompt_text() == "What is X?"
     assert c.answer_text() == "Y"
@@ -21,7 +22,7 @@ def test_basic_card_roundtrips():
     assert c.id  # auto-assigned
 
 
-def test_cloze_card_requires_marker():
+def test_cloze_card_requires_marker() -> None:
     ok = Card(type=CardType.CLOZE, cloze_text="The capital is {{c1::Paris}}.")
     assert ok.prompt_text().startswith("The capital")
     with pytest.raises(ValidationError):
@@ -38,19 +39,19 @@ def test_cloze_card_requires_marker():
         {"type": CardType.REVERSIBLE, "front": "term", "back": ""},
     ],
 )
-def test_front_back_required(kwargs):
+def test_front_back_required(kwargs: dict[str, Any]) -> None:
     with pytest.raises(ValidationError):
         Card(**kwargs)
 
 
-def test_card_ids_unique():
+def test_card_ids_unique() -> None:
     a, b = Card(front="a", back="1"), Card(front="b", back="2")
     assert a.id != b.id
 
 
-def test_cardset_lookup_by_id():
+def test_cardset_lookup_by_id() -> None:
     c = Card(front="q", back="a")
-    cs = CardSet(source=Source(title="S"), cards=[c])
+    cs = CardSet(cards=[c])
     assert cs.by_id(c.id) is c
     assert cs.by_id("missing") is None
 
@@ -59,12 +60,12 @@ def test_cardset_lookup_by_id():
     ("tier", "usable"),
     [(Tier.T0, False), (Tier.T1, False), (Tier.T2, True), (Tier.T3, True)],
 )
-def test_tier_usable(tier, usable):
+def test_tier_usable(tier: Tier, usable: bool) -> None:
     assert tier.usable is usable
     assert Verdict(tier=tier).usable is usable
 
 
-def test_verdict_clean_requires_usable_and_no_probe_failures():
+def test_verdict_clean_requires_usable_and_no_probe_failures() -> None:
     clean = Verdict(
         tier=Tier.T3,
         probes=[ProbeResult(probe=ProbeName.WORDY, failed=False)],
