@@ -168,8 +168,14 @@ class LLM:
             warnings.simplefilter("ignore", DeprecationWarning)
             try:
                 response: Any = self._anthropic.messages.parse(**call, **reasoning)  # type: ignore[arg-type]
-            except BadRequestError:
+            except BadRequestError as exc:
                 # Older Claude models reject adaptive thinking / effort — retry plain.
+                logger.warning(
+                    "retrying %s without adaptive thinking / effort=%r after 400: %s",
+                    self.model,
+                    effort,
+                    exc,
+                )
                 response = self._anthropic.messages.parse(**call)  # type: ignore[arg-type]
 
         usage = response.usage

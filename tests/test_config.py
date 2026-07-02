@@ -32,3 +32,13 @@ def test_resolved_key_falls_back_to_env(tmp_path: Path, monkeypatch: pytest.Monk
     monkeypatch.setenv("OPENAI_API_KEY", "env-key")
     cfg = ModelConfig(provider="openai", api_key="")
     assert cfg.resolved_key() == "env-key" and cfg.has_key()
+
+
+def test_saved_config_is_owner_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    path = save_config(ModelConfig(api_key="sk-secret"))
+    assert path.stat().st_mode & 0o777 == 0o600
+    # re-saving over a pre-existing (looser) file tightens it too
+    path.chmod(0o644)
+    save_config(ModelConfig(api_key="sk-secret2"))
+    assert path.stat().st_mode & 0o777 == 0o600

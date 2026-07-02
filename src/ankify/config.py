@@ -50,5 +50,7 @@ def load_config() -> ModelConfig:
 def save_config(config: ModelConfig) -> Path:
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch(mode=0o600, exist_ok=True)
+    path.chmod(0o600)  # contains the API key; keep it owner-only even if it predates this
     path.write_text(config.model_dump_json(indent=2))
     return path

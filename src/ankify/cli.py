@@ -195,6 +195,7 @@ class CLI:
             media_dir=str(media_dir),
             export_path=str(export_path),
             sources_path=str(sources_path),
+            extra_hosts=(host,),  # deliberate non-local binds stay reachable
         )
         if open_browser:
             webbrowser.open(f"http://{host}:{port}")

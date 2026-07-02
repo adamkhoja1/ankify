@@ -146,3 +146,20 @@ def test_session_save_is_atomic_no_tmp_left_behind(tmp_path: Path) -> None:
     SessionStore(path).save(ReviewSession(rounds=[CardSet(cards=[Card(front="q", back="a")])]))
     assert path.exists()
     assert not (tmp_path / "s.json.tmp").exists()
+
+
+def test_non_local_host_header_is_rejected(client: TestClient) -> None:
+    # DNS-rebinding protection: a page resolving to 127.0.0.1 sends its own Host
+    r = client.get("/api/session", headers={"host": "evil.example.com"})
+    assert r.status_code == 400
+
+
+def test_config_endpoint_rejects_unknown_provider(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    r = client.post(
+        "/api/config", json={"provider": "closedai", "model": "x", "reasoning_effort": "high"}
+    )
+    assert r.status_code == 422
+    assert not (tmp_path / "xdg" / "ankify" / "config.json").exists()  # nothing written

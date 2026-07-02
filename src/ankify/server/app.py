@@ -17,12 +17,13 @@ from collections import Counter
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from ..anki import AnkiConnect, AnkiConnectError
-from ..config import ModelConfig, load_config, save_config
+from ..config import ModelConfig, Provider, load_config, save_config
 from ..export import to_apkg
 from ..generate import Generator
 from ..llm import LLM
@@ -51,7 +52,7 @@ class RequestsIn(BaseModel):
 
 
 class ConfigIn(BaseModel):
-    provider: str
+    provider: Provider
     model: str
     reasoning_effort: str = "high"
     api_key: str | None = None  # only update the stored key when non-empty
@@ -105,6 +106,7 @@ def create_app(
     media_dir: str | Path = ".ankify/media",
     export_path: str | Path | None = None,
     sources_path: str | Path | None = None,
+    extra_hosts: tuple[str, ...] = (),
 ) -> FastAPI:
     store = SessionStore(session_path)
     anki = AnkiConnect(anki_url) if anki_url else AnkiConnect()
@@ -116,6 +118,13 @@ def create_app(
     )
     source_store = SourceStore(sources_file)
     app = FastAPI(title="ankify review")
+    # Reject requests whose Host header isn't ours (DNS-rebinding protection: a malicious
+    # page must not be able to read the session or overwrite the API-key config).
+    # "testserver" is FastAPI's TestClient host.
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["localhost", "127.0.0.1", "::1", "testserver", *extra_hosts],
+    )
     # Sync handlers run in a threadpool: serialize load-modify-save cycles and .apkg
     # writes so concurrent requests can't drop decisions or interleave exports.
     # Reentrant because /api/export.apkg exports while inside a locked handler.
