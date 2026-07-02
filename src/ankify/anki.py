@@ -147,14 +147,21 @@ class AnkiConnect:
         result = self._invoke("addNotes", notes=notes)
         ids = list(result) if isinstance(result, list) else []
         added = sum(1 for i in ids if i is not None)
-        skipped = len(notes) - added
-        # canAddNotes distinguishes duplicates from genuine failures.
-        can_add = self._invoke("canAddNotes", notes=notes)
-        flags = list(can_add) if isinstance(can_add, list) else [True] * len(notes)
-        duplicates = sum(
-            1 for i, ok in zip(ids, flags, strict=False) if i is None and not ok
-        )
-        failed = skipped - duplicates
+        duplicates = failed = 0
+        if added < len(notes):
+            # addNotes returns null for both duplicates and genuine failures;
+            # canAddNotesWithErrorDetail reports why each note was rejected.
+            detail = self._invoke("canAddNotesWithErrorDetail", notes=notes)
+            details = list(detail) if isinstance(detail, list) else [{}] * len(notes)
+            for note_id, info in zip(ids, details, strict=False):
+                if note_id is not None:
+                    continue
+                error = str(info.get("error") or "") if isinstance(info, dict) else ""
+                if "duplicate" in error.lower():
+                    duplicates += 1
+                else:
+                    failed += 1
+                    logger.warning("note not added: %s", error or "unknown reason")
         return ImportResult(added=added, duplicates=duplicates, failed=failed, total=len(notes))
 
     def sync(self) -> None:
