@@ -1,5 +1,6 @@
 """Offline unit tests (no API): cost tracking, prompt loading, parsing, session logic."""
 
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -23,6 +24,15 @@ def test_cost_tracker_no_budget_never_raises() -> None:
     for _ in range(5):
         t.record("gpt-5.5", 10_000_000, 10_000_000)
     assert t.n_calls == 5
+
+
+def test_cost_tracker_concurrent_records_dont_lose_updates() -> None:
+    t = CostTracker()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda _: t.record("gpt-5.5", 10, 5, effort="high"), range(200)))
+    assert t.n_calls == 200
+    assert t.input_tokens == 2000 and t.output_tokens == 1000
+    assert t.by_effort == {"high": 200}
 
 
 @pytest.mark.parametrize("filename", ["probe_shallow.txt", "tier_grounded.txt"])

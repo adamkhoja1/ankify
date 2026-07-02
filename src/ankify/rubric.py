@@ -11,6 +11,7 @@ output-format sections are stripped at load time; structured outputs enforce the
 from __future__ import annotations
 
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from functools import cache
 from importlib import resources
 
@@ -70,7 +71,9 @@ class Judge:
         return ProbeResult(probe=probe, failed=out.failed, reason=out.reason)
 
     def run_probes(self, card: Card) -> list[ProbeResult]:
-        return [self.run_probe(card, probe) for probe in ProbeName]
+        """Run the five probes concurrently; results stay in `ProbeName` order."""
+        with ThreadPoolExecutor(max_workers=len(ProbeName)) as pool:
+            return list(pool.map(lambda probe: self.run_probe(card, probe), ProbeName))
 
     def tier(
         self,
@@ -101,6 +104,14 @@ class Judge:
         reference_cards: Sequence[Card] | None = None,
         run_probes: bool = True,
     ) -> Verdict:
-        tier_out = self.tier(card, source_description, reference_cards)
-        probes = self.run_probes(card) if run_probes else []
+        """Tier + probes for one card. The six LLM calls are independent, so they run
+        concurrently — per-card latency is one call, not six."""
+        if not run_probes:
+            tier_out = self.tier(card, source_description, reference_cards)
+            return Verdict(tier=tier_out.tier, probes=[], reason=tier_out.reasoning)
+        with ThreadPoolExecutor(max_workers=1 + len(ProbeName)) as pool:
+            tier_future = pool.submit(self.tier, card, source_description, reference_cards)
+            probe_futures = [pool.submit(self.run_probe, card, probe) for probe in ProbeName]
+            tier_out = tier_future.result()
+            probes = [f.result() for f in probe_futures]
         return Verdict(tier=tier_out.tier, probes=probes, reason=tier_out.reasoning)

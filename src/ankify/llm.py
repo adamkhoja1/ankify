@@ -12,6 +12,7 @@ thinking). A shared `CostTracker` accumulates spend and raises `BudgetExceededEr
 from __future__ import annotations
 
 import logging
+import threading
 import warnings
 from dataclasses import dataclass, field
 from typing import Any, cast
@@ -55,22 +56,25 @@ class CostTracker:
     output_tokens: int = 0
     n_calls: int = 0
     by_effort: dict[str, int] = field(default_factory=dict)
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def record(self, model: str, in_tokens: int, out_tokens: int, effort: str = "") -> float:
-        in_price, out_price = _PRICING.get(model, _DEFAULT_PRICE)
-        cost = in_tokens * in_price + out_tokens * out_price
-        self.spent_usd += cost
-        self.input_tokens += in_tokens
-        self.output_tokens += out_tokens
-        self.n_calls += 1
-        if effort:
-            self.by_effort[effort] = self.by_effort.get(effort, 0) + 1
-        if self.budget_usd is not None and self.spent_usd > self.budget_usd:
-            raise BudgetExceededError(
-                f"spent ~${self.spent_usd:.2f} > budget ${self.budget_usd:.2f} "
-                f"after {self.n_calls} calls ({self.input_tokens}+{self.output_tokens} tok)"
-            )
-        return cost
+        # Locked: probes are judged concurrently, and lost updates would undercount spend.
+        with self._lock:
+            in_price, out_price = _PRICING.get(model, _DEFAULT_PRICE)
+            cost = in_tokens * in_price + out_tokens * out_price
+            self.spent_usd += cost
+            self.input_tokens += in_tokens
+            self.output_tokens += out_tokens
+            self.n_calls += 1
+            if effort:
+                self.by_effort[effort] = self.by_effort.get(effort, 0) + 1
+            if self.budget_usd is not None and self.spent_usd > self.budget_usd:
+                raise BudgetExceededError(
+                    f"spent ~${self.spent_usd:.2f} > budget ${self.budget_usd:.2f} "
+                    f"after {self.n_calls} calls ({self.input_tokens}+{self.output_tokens} tok)"
+                )
+            return cost
 
     @property
     def exhausted(self) -> bool:
