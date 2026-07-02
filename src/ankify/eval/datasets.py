@@ -60,7 +60,13 @@ def parse_qa(text: str) -> Card | None:
 
 def load_memory_machines(split: str = "test", limit: int | None = None) -> list[ValItem]:
     """Load Memory Machines highlights as ValItems, grouped by highlight_id."""
-    from datasets import load_dataset  # type: ignore[import-untyped]
+    try:
+        from datasets import load_dataset
+    except ImportError as exc:
+        raise ImportError(
+            "the `datasets` package is required for evals; install it with "
+            "`uv sync --extra eval`"
+        ) from exc
 
     rows = load_dataset("laddermedia/srs-prompts")[split]
     by_highlight: dict[int, list[dict[str, Any]]] = defaultdict(list)

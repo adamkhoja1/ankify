@@ -14,7 +14,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-06-21T08:35:59.746351Z"
+exclude-newer = "2026-06-25T19:42:40.574115Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -126,7 +126,6 @@ source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "beautifulsoup4" },
-    { name = "datasets" },
     { name = "fastapi" },
     { name = "fire" },
     { name = "genanki" },
@@ -135,6 +134,11 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+eval = [
+    { name = "datasets" },
 ]
 
 [package.dev-dependencies]
@@ -149,7 +153,7 @@ dev = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.109" },
     { name = "beautifulsoup4", specifier = ">=4.13.0" },
-    { name = "datasets", specifier = ">=3.2.0" },
+    { name = "datasets", marker = "extra == 'eval'", specifier = ">=3.2.0" },
     { name = "fastapi", specifier = ">=0.118.0" },
     { name = "fire", specifier = ">=0.7.0" },
     { name = "genanki", specifier = ">=0.13" },
@@ -159,6 +163,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
 ]
+provides-extras = ["eval"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -34,7 +34,7 @@ uv run ankify serve
 # Import the approved cards into Anki and sync
 uv run ankify push --deck "My Deck"
 
-# Run the verification loop on the validation set
+# Run the verification loop on the validation set (needs `uv sync --extra eval` once)
 uv run ankify eval --limit 10
 ```
 
