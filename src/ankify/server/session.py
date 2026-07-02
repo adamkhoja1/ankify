@@ -105,8 +105,11 @@ class SessionStore:
         return ReviewSession.model_validate_json(self.path.read_text())
 
     def save(self, session: ReviewSession) -> None:
+        # Write-then-rename so a crash mid-write can't corrupt the session file.
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(session.model_dump_json(indent=2))
+        tmp = self.path.with_name(self.path.name + ".tmp")
+        tmp.write_text(session.model_dump_json(indent=2))
+        tmp.replace(self.path)
 
 
 class SourceStore:
@@ -133,9 +136,11 @@ class SourceStore:
         if sid not in sources:
             sources[sid] = source
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            self.path.write_text(
+            tmp = self.path.with_name(self.path.name + ".tmp")
+            tmp.write_text(
                 json.dumps({k: v.model_dump() for k, v in sources.items()}, indent=2)
             )
+            tmp.replace(self.path)
         return sid
 
     def get(self, sid: str) -> Source | None:

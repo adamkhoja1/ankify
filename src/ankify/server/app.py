@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from collections import Counter
 from pathlib import Path
 
@@ -115,6 +116,10 @@ def create_app(
     )
     source_store = SourceStore(sources_file)
     app = FastAPI(title="ankify review")
+    # Sync handlers run in a threadpool: serialize load-modify-save cycles and .apkg
+    # writes so concurrent requests can't drop decisions or interleave exports.
+    # Reentrant because /api/export.apkg exports while inside a locked handler.
+    lock = threading.RLock()
 
     def _require_session() -> ReviewSession:
         if not store.exists():
@@ -123,7 +128,10 @@ def create_app(
 
     def _export(session: ReviewSession) -> None:
         try:
-            to_apkg(session.approved_cards(), session.deck or "Ankify", media_path, export_file)
+            with lock:
+                to_apkg(
+                    session.approved_cards(), session.deck or "Ankify", media_path, export_file
+                )
         except Exception as exc:  # background task: never break the request on export failure
             logger.warning("apkg export failed: %s", exc)
 
@@ -175,70 +183,79 @@ def create_app(
 
     @app.post("/api/subdeck")
     def post_subdeck(body: SubdeckIn, background_tasks: BackgroundTasks) -> dict[str, object]:
-        session = _require_session()
-        if session.current:
-            for i, card in enumerate(session.current.cards):
-                if card.id == body.card_id:
-                    session.current.cards[i] = card.model_copy(
-                        update={"subdeck": body.subdeck.strip()}
-                    )
-                    break
-        _persist(session, background_tasks)
+        with lock:
+            session = _require_session()
+            if session.current:
+                for i, card in enumerate(session.current.cards):
+                    if card.id == body.card_id:
+                        session.current.cards[i] = card.model_copy(
+                            update={"subdeck": body.subdeck.strip()}
+                        )
+                        break
+            _persist(session, background_tasks)
         return {"subdecks": _subdeck_counts(session)}
 
     @app.post("/api/subdeck/rename")
     def post_subdeck_rename(
         body: SubdeckRenameIn, background_tasks: BackgroundTasks
     ) -> dict[str, object]:
-        session = _require_session()
-        renamed = 0
-        if session.current:
-            for i, card in enumerate(session.current.cards):
-                if card.subdeck == body.old:
-                    session.current.cards[i] = card.model_copy(update={"subdeck": body.new.strip()})
-                    renamed += 1
-        _persist(session, background_tasks)
+        with lock:
+            session = _require_session()
+            renamed = 0
+            if session.current:
+                for i, card in enumerate(session.current.cards):
+                    if card.subdeck == body.old:
+                        session.current.cards[i] = card.model_copy(
+                            update={"subdeck": body.new.strip()}
+                        )
+                        renamed += 1
+            _persist(session, background_tasks)
         return {"renamed": renamed, "subdecks": _subdeck_counts(session)}
 
     @app.post("/api/decision")
     def post_decision(body: DecisionIn, background_tasks: BackgroundTasks) -> dict[str, object]:
-        session = _require_session()
-        action = body.action
-        # A saved edit = the edited content applied in place, then accepted. We don't keep a
-        # distinct "edited" state: the card becomes the edited version and the decision is accept.
-        if action is ReviewAction.EDIT and body.edited_card is not None and session.current:
-            updated = body.edited_card.model_copy(update={"id": body.card_id})
-            for i, card in enumerate(session.current.cards):
-                if card.id == body.card_id:
-                    session.current.cards[i] = updated
-                    break
-            action = ReviewAction.ACCEPT
-        session.decisions[body.card_id] = ReviewDecision(
-            card_id=body.card_id, action=action, feedback=body.feedback
-        )
-        _persist(session, background_tasks)
+        with lock:
+            session = _require_session()
+            action = body.action
+            # A saved edit = the edited content applied in place, then accepted. We don't keep
+            # a distinct "edited" state: the card becomes the edited version and the decision
+            # is accept.
+            if action is ReviewAction.EDIT and body.edited_card is not None and session.current:
+                updated = body.edited_card.model_copy(update={"id": body.card_id})
+                for i, card in enumerate(session.current.cards):
+                    if card.id == body.card_id:
+                        session.current.cards[i] = updated
+                        break
+                action = ReviewAction.ACCEPT
+            session.decisions[body.card_id] = ReviewDecision(
+                card_id=body.card_id, action=action, feedback=body.feedback
+            )
+            _persist(session, background_tasks)
         return {"pending": session.pending_count(), "approved": len(session.approved_cards())}
 
     @app.post("/api/requests")
     def post_requests(body: RequestsIn, background_tasks: BackgroundTasks) -> dict[str, object]:
-        session = _require_session()
-        session.requests = [r.strip() for r in body.requests if r.strip()]
-        _persist(session, background_tasks)
+        with lock:
+            session = _require_session()
+            session.requests = [r.strip() for r in body.requests if r.strip()]
+            _persist(session, background_tasks)
         return {"requests": session.requests}
 
     @app.post("/api/regenerate")
     def post_regenerate(background_tasks: BackgroundTasks) -> dict[str, object]:
-        session = _require_session()
-        if not session.requests and not session.revisions():
-            raise HTTPException(
-                400, "Nothing to regenerate — request a new card, or discard one with feedback."
-            )
-        if not load_config().has_key():
-            raise HTTPException(
-                503, "No API key configured for the selected provider — set one in Settings."
-            )
-        new_round = _regenerate(session, source_store)
-        _persist(session, background_tasks)
+        with lock:  # held across the LLM call: a decision landing mid-round must not be lost
+            session = _require_session()
+            if not session.requests and not session.revisions():
+                raise HTTPException(
+                    400,
+                    "Nothing to regenerate — request a new card, or discard one with feedback.",
+                )
+            if not load_config().has_key():
+                raise HTTPException(
+                    503, "No API key configured for the selected provider — set one in Settings."
+                )
+            new_round = _regenerate(session, source_store)
+            _persist(session, background_tasks)
         return {"round": new_round.round, "cards": [c.model_dump() for c in new_round.cards]}
 
     @app.get("/api/export.apkg")
@@ -260,17 +277,18 @@ def create_app(
 
     @app.post("/api/import")
     def post_import(body: ImportIn, background_tasks: BackgroundTasks) -> dict[str, object]:
-        session = _require_session()
-        cards = session.approved_cards()
-        if not cards:
-            raise HTTPException(400, "no approved cards to import")
-        try:
-            result = anki.import_cards(cards, body.deck, body.tags, media_dir=media_path)
-            anki.sync()
-        except AnkiConnectError as exc:
-            raise HTTPException(503, str(exc)) from exc
-        session.deck = body.deck
-        _persist(session, background_tasks)
+        with lock:
+            session = _require_session()
+            cards = session.approved_cards()
+            if not cards:
+                raise HTTPException(400, "no approved cards to import")
+            try:
+                result = anki.import_cards(cards, body.deck, body.tags, media_dir=media_path)
+                anki.sync()
+            except AnkiConnectError as exc:
+                raise HTTPException(503, str(exc)) from exc
+            session.deck = body.deck
+            _persist(session, background_tasks)
         return result.__dict__
 
     app.mount("/media", StaticFiles(directory=media_path), name="media")

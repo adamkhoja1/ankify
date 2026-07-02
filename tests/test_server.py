@@ -4,6 +4,7 @@ Covers the no-LLM, no-Anki paths: reading a session, recording decisions, subdec
 approved/pending bookkeeping that import and regenerate depend on.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -117,3 +118,31 @@ def test_rename_subdeck_across_round(client: TestClient) -> None:
     assert rename.json()["renamed"] == 2
     names = {s["name"] for s in client.get("/api/session").json()["subdecks"]}
     assert "New" in names and "Old" not in names
+
+
+def test_concurrent_decisions_are_all_recorded(tmp_path: Path) -> None:
+    """Overlapping load-modify-save cycles must not drop decisions (serialized by the
+    app lock; each handler reloads the session from disk)."""
+    path = tmp_path / "session.json"
+    cards = [Card(front=f"q{i}", back=f"a{i}") for i in range(12)]
+    SessionStore(path).save(ReviewSession(rounds=[CardSet(cards=cards)]))
+    client = TestClient(
+        create_app(path, media_dir=tmp_path / "media", export_path=tmp_path / "deck.apkg")
+    )
+
+    def decide(card: Card) -> int:
+        r = client.post("/api/decision", json={"card_id": card.id, "action": "accept"})
+        return int(r.status_code)
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        codes = list(pool.map(decide, cards))
+
+    assert codes == [200] * len(cards)
+    assert len(SessionStore(path).load().decisions) == len(cards)
+
+
+def test_session_save_is_atomic_no_tmp_left_behind(tmp_path: Path) -> None:
+    path = tmp_path / "s.json"
+    SessionStore(path).save(ReviewSession(rounds=[CardSet(cards=[Card(front="q", back="a")])]))
+    assert path.exists()
+    assert not (tmp_path / "s.json.tmp").exists()
