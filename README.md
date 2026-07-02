@@ -16,8 +16,9 @@ and calibrates the LLM judge against human labels.
 uv sync
 ```
 
-Set an LLM key in the environment (`OPENAI_API_KEY` for GPT-5.5, the current default).
-Anki import needs Anki open with the AnkiConnect add-on (code 2055492159).
+Set an LLM key in the environment (`OPENAI_API_KEY` for GPT-5.5, the current default, or
+`ANTHROPIC_API_KEY`); the provider, model, and key can also be set in the review app's
+settings panel. Anki import needs Anki open with the AnkiConnect add-on (code 2055492159).
 
 ## Usage
 

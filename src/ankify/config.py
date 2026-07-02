@@ -19,7 +19,7 @@ Provider = Literal["openai", "anthropic"]
 class ModelConfig(BaseModel):
     provider: Provider = "openai"
     model: str = "gpt-5.5"
-    reasoning_effort: str = "high"  # OpenAI reasoning effort; ignored by the Anthropic path
+    reasoning_effort: str = "high"  # OpenAI `reasoning_effort` / Anthropic `output_config.effort`
     api_key: str = ""
 
     def resolved_key(self) -> str:
