@@ -79,9 +79,9 @@ fallback.
 Always convert to clean markdown before generating — extraction quality dominates card
 quality.
 
-- PDF / DOCX / EPUB / URL → use the **`to_md`** skill.
+- PDF / DOCX / EPUB / URL → use the **`to-md`** skill.
 - A paper on arXiv → prefer LaTeX source over PDF: `uv run ankify` exposes
-  `ankify.ingest.arxiv_to_markdown(arxiv_id)` (pandoc on the e-print), or use `to_md`.
+  `ankify.ingest.arxiv_to_markdown(arxiv_id)` (pandoc on the e-print), or use `to-md`.
 - Already markdown/text → use as-is.
 
 ### 2. Clarify scope — only where it adds concrete value

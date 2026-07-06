@@ -1,9 +1,9 @@
 """Markdown-first ingestion: get a source into clean markdown before generating cards.
 
-The canonical path (documented in the skill) is the `to_md` skill for PDF/DOCX/EPUB/URL,
+The canonical path (documented in the skill) is the `to-md` skill for PDF/DOCX/EPUB/URL,
 or pandoc on LaTeX source (e.g. arXiv) when that beats PDF extraction. These helpers cover
 the library/eval path: already-markdown files, a best-effort URL scrape, and the
-arXiv-LaTeX -> pandoc route. Binary formats raise with a pointer to `to_md`.
+arXiv-LaTeX -> pandoc route. Binary formats raise with a pointer to `to-md`.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def from_file(path: str | Path) -> Source:
     if suffix in _BINARY_SUFFIXES:
         raise ValueError(
             f"{path.name} is a binary format; convert it to markdown first with the "
-            "`to_md` skill, then pass the .md file here."
+            "`to-md` skill, then pass the .md file here."
         )
     if suffix not in _MARKDOWN_SUFFIXES:
         logger.warning("treating %s as plain text", path.name)
@@ -56,7 +56,7 @@ def _extract_readable(html: str) -> tuple[str, str]:
 
 
 def url_to_markdown(url: str, title: str = "") -> Source:
-    """Fetch a web page and extract readable text (best-effort; prefer `to_md`)."""
+    """Fetch a web page and extract readable text (best-effort; prefer `to-md`)."""
     resp = httpx.get(url, timeout=30.0, follow_redirects=True)
     resp.raise_for_status()
     page_title, text = _extract_readable(resp.text)
@@ -88,7 +88,7 @@ def _tex_from_eprint(data: bytes, arxiv_id: str) -> bytes:
             return single
     raise RuntimeError(
         f"no main .tex (\\documentclass) found in arXiv:{arxiv_id} e-print; if the paper "
-        "is PDF-only, convert the PDF with `to_md` instead."
+        "is PDF-only, convert the PDF with `to-md` instead."
     )
 
 
@@ -99,7 +99,7 @@ def arxiv_to_markdown(arxiv_id: str) -> Source:
     with a clear error if pandoc is missing or the e-print has no LaTeX source.
     """
     if shutil.which("pandoc") is None:
-        raise RuntimeError("pandoc is not installed; `brew install pandoc` or use `to_md`.")
+        raise RuntimeError("pandoc is not installed; `brew install pandoc` or use `to-md`.")
     resp = httpx.get(f"https://arxiv.org/e-print/{arxiv_id}", timeout=60.0, follow_redirects=True)
     resp.raise_for_status()
     tex_bytes = _tex_from_eprint(resp.content, arxiv_id)

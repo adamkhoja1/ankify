@@ -11,12 +11,12 @@ self-review, and human approval — then import into Anki. The same rubric power
 harness** we actually run to iterate the generator against a validation set.
 
 The skill lives here (in `~/Projects/ankify`) and is linked into the
-`cais_informal_marketplace` marketplace by git URL, mirroring `to_md`.
+`cais-informal-marketplace` marketplace by git URL, mirroring `to-md`.
 
 ## Principles (from research)
 
 - **Markdown first.** Always convert the source to clean markdown before generating
-  (via the `to_md` skill; or pandoc on LaTeX source — e.g. arXiv `e-print` tarballs —
+  (via the `to-md` skill; or pandoc on LaTeX source — e.g. arXiv `e-print` tarballs —
   when that yields cleaner output than PDF).
 - **Stringency on the question, latitude on the answer.** The question must be atomic,
   unambiguous, self-contained, and effortful; the answer may elaborate.
@@ -31,12 +31,12 @@ The skill lives here (in `~/Projects/ankify`) and is linked into the
 
 ```
 ankify/
-  .claude-plugin/plugin.json        # marketplace plugin manifest (mirrors to_md)
-  skills/ankify/SKILL.md            # the skill, moved out of cais_informal_marketplace
+  .claude-plugin/plugin.json        # marketplace plugin manifest (mirrors to-md)
+  skills/ankify/SKILL.md            # the skill, moved out of cais-informal-marketplace
   skills/ankify/principles.md       # condensed card-writing guidance (kept in sync w/ rubric)
   src/ankify/
     models.py            # pydantic: Card, CardType, CardSet, Source, RubricScore, Verdict...
-    ingest.py            # source -> clean markdown (to_md / pandoc-arxiv); chunking
+    ingest.py            # source -> clean markdown (to-md / pandoc-arxiv); chunking
     generate.py          # markdown + notes -> candidate cards (Anthropic)
     selfreview.py        # multi-round rubric critique; refine or drop before surfacing
     rubric.py            # rubric as data + LLM judge (grounded + ungrounded)
@@ -97,7 +97,7 @@ ankify/
 
 ## Skill (SKILL.md) posture
 
-- Markdown-first instruction with `to_md`/pandoc guidance.
+- Markdown-first instruction with `to-md`/pandoc guidance.
 - A clarifying-questions section: ask open-ended scope/quality questions liberally **only
   where they add concrete value**; the default flow needs no questions.
 - Orchestrates the library CLI; explains the human-in-the-loop review app.
@@ -121,8 +121,8 @@ ankify/
 
 - Add `.claude-plugin/plugin.json` (name `ankify`) + move `skills/ankify/`.
 - Push `ankify` to GitHub; change the `ankify` entry in
-  `cais_informal_marketplace/.claude-plugin/marketplace.json` from `./plugins/ankify` to the
-  `git@github.com:...` URL, matching `to_md`. Remove the old in-repo `plugins/ankify/`.
+  `cais-informal-marketplace/.claude-plugin/marketplace.json` from `./plugins/ankify` to the
+  `git@github.com:...` URL, matching `to-md`. Remove the old in-repo `plugins/ankify/`.
 
 ## Decisions (signed off)
 

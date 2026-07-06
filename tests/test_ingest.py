@@ -25,7 +25,7 @@ def _tarball(files: dict[str, bytes]) -> bytes:
 def test_ingest_rejects_binary(tmp_path: Path) -> None:
     pdf = tmp_path / "doc.pdf"
     pdf.write_bytes(b"%PDF-1.4")
-    with pytest.raises(ValueError, match="to_md"):
+    with pytest.raises(ValueError, match="to-md"):
         from_file(pdf)
 
 
@@ -63,7 +63,7 @@ def test_tex_from_eprint_single_gzipped_file() -> None:
 
 
 def test_tex_from_eprint_pdf_only_raises_with_guidance() -> None:
-    with pytest.raises(RuntimeError, match="to_md"):
+    with pytest.raises(RuntimeError, match="to-md"):
         _tex_from_eprint(b"%PDF-1.5 not latex", "1234.5678")
 
 
