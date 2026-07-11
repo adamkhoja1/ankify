@@ -5,7 +5,7 @@ Loads Varian chapter TSVs, judges each card (probes + ungrounded tier, grounded 
 chapter text for faithfulness), and writes an HTML report grouping cards by score with the
 judge's reasoning. GPT-5.5 high. Threaded so the per-card 6-call judging isn't serial.
 
-Usage: uv run scripts/judge_cards_html.py --chapters 01,02,03
+Usage: uv run scripts/judge_cards_html.py --vault <econ-study-dir> --chapters 01,02,03
 """
 
 from __future__ import annotations
@@ -20,9 +20,6 @@ from ankify.llm import LLM, CostTracker
 from ankify.models import Card, CardType, Verdict
 from ankify.rubric import Judge
 
-VAULT = Path("/Users/adam/Documents/Vault/Study/econ_study")
-MD_DIR = VAULT / "varian_intermediate_microeconomics.md"
-TSV_DIR = VAULT / "anki_exports"
 CH_MD = {
     "01": "01-the-market.md",
     "02": "02-budget-constraint.md",
@@ -31,10 +28,10 @@ CH_MD = {
 TIER_RANK = {"T3": 3, "T2": 2, "T1": 1, "T0": 0}
 
 
-def load_cards(chapters: list[str]) -> list[tuple[str, Card]]:
+def load_cards(chapters: list[str], tsv_dir: Path) -> list[tuple[str, Card]]:
     items: list[tuple[str, Card]] = []
     for ch in chapters:
-        tsv = TSV_DIR / f"varian_ch{ch}_flashcards.tsv"
+        tsv = tsv_dir / f"varian_ch{ch}_flashcards.tsv"
         for line in tsv.read_text().splitlines()[1:]:  # skip header
             parts = line.split("\t")
             if len(parts) < 2 or not parts[0].strip() or not parts[1].strip():
@@ -116,16 +113,20 @@ def render(results: list[tuple[str, Card, Verdict]], tracker: CostTracker) -> st
 
 
 def main(
+    vault: str,
     chapters: str = "01,02,03",
     out: str = "eval_runs/varian_existing_cards.html",
     budget: float = 14.0,
     workers: int = 8,
 ) -> None:
+    vault_dir = Path(vault)
+    md_dir = vault_dir / "varian_intermediate_microeconomics.md"
+    tsv_dir = vault_dir / "anki_exports"
     chs = chapters.split(",")
     tracker = CostTracker(budget_usd=budget)
     judge = Judge(LLM(tracker=tracker))
-    src = {ch: (MD_DIR / CH_MD[ch]).read_text() for ch in chs}
-    items = load_cards(chs)
+    src = {ch: (md_dir / CH_MD[ch]).read_text() for ch in chs}
+    items = load_cards(chs, tsv_dir)
     print(f"judging {len(items)} cards across chapters {chs}…")
 
     def work(item: tuple[str, Card]) -> tuple[str, Card, Verdict]:

@@ -4,7 +4,7 @@ Generates + self-reviews per chapter (balanced coverage) and merges into one rev
 Each chapter is registered in the session's SourceStore and its cards carry that chapter's
 source id, so the app's "regenerate round" works per chapter.
 
-Usage: uv run scripts/gen_varian.py
+Usage: uv run scripts/gen_varian.py --md_dir <dir-with-chapter-md-files>
 Then:  uv run ankify serve --name varian
 """
 
@@ -20,9 +20,6 @@ from ankify.models import Card, CardSet, Source
 from ankify.server.session import ReviewSession, SessionStore, SourceStore
 from ankify.store import Store
 
-MD_DIR = Path(
-    "/Users/adam/Documents/Vault/Study/econ_study/varian_intermediate_microeconomics.md"
-)
 CHAPTERS = {
     "01": "01-the-market.md",
     "02": "02-budget-constraint.md",
@@ -31,11 +28,13 @@ CHAPTERS = {
 
 
 def main(
+    md_dir: str,
     name: str = "varian",
     per_chapter: int = 12,
     review_rounds: int = 2,
     budget: float = 8.0,
 ) -> None:
+    md_path = Path(md_dir)
     tracker = CostTracker(budget_usd=budget)
     gen = Generator(LLM(tracker=tracker))
     store = Store()
@@ -44,7 +43,7 @@ def main(
 
     all_cards: list[Card] = []
     for ch, fn in CHAPTERS.items():
-        text = (MD_DIR / fn).read_text()
+        text = (md_path / fn).read_text()
         src = Source(title=f"Varian ch{ch}", kind="markdown", markdown=text)
         sources.add(src)  # generated cards carry src.sid() as their source_id
         draft = gen.generate(src, count_hint=per_chapter)
