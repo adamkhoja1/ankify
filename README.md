@@ -2,7 +2,7 @@
 
 Generate high-quality spaced-repetition (Anki) flashcards from a source, with a
 rubric-driven review loop and an eval harness. Also packages the `ankify` Claude Code skill
-(`skills/ankify/`), linked into the cais marketplace.
+(`skills/ankify/`), to link into Claude marketplaces.
 
 The pipeline is markdown-first: convert a source to clean markdown, generate candidate
 cards, self-review them against a card-quality rubric, review them in a small web app
